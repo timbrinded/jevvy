@@ -77,6 +77,11 @@ test('blank-separated comments have unresolved ownership', async () => {
     assert.equal(r.units[0]!.context.status, 'partial');
   }
 });
+test('a separate prose block does not bridge blank-line ownership gaps', async () => {
+  const r = await extract('typescript', '// Heading.\n\n// Function documentation.\nfunction f() {}');
+  assert.equal(r.units[0]!.structure.attachment.kind, 'unresolved');
+  assert.equal(r.units[1]!.structure.owner!.name, 'f');
+});
 test('trailing comments own their same-line statement', async () => {
   const r = await extract('typescript', 'function f() {\n const value = 1; // intentional\n return value;\n}');
   assert.match(r.units[0]!.structure.attachment.evidence, /Trailing/);
@@ -100,6 +105,36 @@ test('TypeScript decorators, methods, class fields and type docs retain their de
   assert.ok(r.units.every(u => u.structure.owner !== null));
   assert.ok(Object.values(r.contexts).some(c => c.text.includes('@sealed')));
   assert.ok(Object.values(r.contexts).some(c => c.text.includes('@memo')));
+  const method = r.units.find(u => u.text.includes('Returns the key'))!;
+  assert.equal(method.structure.owner!.kind, 'method_definition');
+  assert.equal(method.structure.owner!.name, 'getKey');
+  assert.equal(method.context.status, 'complete_local');
+  assert.ok(method.context.refs.some(ref => /@memo[\s\S]*return this.key/.test(r.contexts[ref]!.text)));
+});
+test('multiple decorators retain the full method and enforce its context budget', async () => {
+  const source = 'class C {\n/** Returns zero. */\n@first\n@second\nvalue() { return 99; }\n}';
+  for (const language of ['typescript', 'tsx'] as const) {
+    const r = await extract(language, source);
+    const u = r.units[0]!;
+    assert.equal(u.structure.owner!.name, 'value');
+    assert.ok(u.context.refs.some(ref => r.contexts[ref]!.text === '@first\n@second\nvalue() { return 99; }'));
+    const small = await extract(language, source, 25);
+    assert.equal(small.units[0]!.context.status, 'partial');
+    assert.ok(small.units[0]!.context.omissions.includes('oversized_owner'));
+  }
+});
+test('comments after exported closing braces retain the completed function', async () => {
+  const r = await extract('typescript', 'export function first() { return 1; } // Returns one.\nexport function next() { return 2; }');
+  const u = r.units[0]!;
+  assert.equal(u.structure.owner!.name, 'first');
+  assert.equal(u.context.status, 'complete_local');
+  assert.ok(u.context.refs.some(ref => r.contexts[ref]!.text.includes('return 1;')));
+  assert.ok(u.context.refs.every(ref => !r.contexts[ref]!.text.includes('return 2;')));
+});
+test('module documentation does not borrow a descendant name', async () => {
+  const r = await extract('python', '"""Module documentation."""\nclass C:\n def __init__(self):\n  pass\n');
+  assert.equal(r.units[0]!.structure.owner!.kind, 'module');
+  assert.equal(r.units[0]!.structure.owner!.name, null);
 });
 test('Rust item/field documentation and raw literal doc attributes are extracted', async () => {
   const r = await extract('rust', '/// Coordinates.\npub struct Point {\n /// Horizontal position.\n pub x: i32,\n}\n#[doc = r#"Returns zero."#]\npub fn zero() -> i32 { 0 }');

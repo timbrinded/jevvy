@@ -1,0 +1,1762 @@
+{
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "bundleId",
+    "producer",
+    "pack",
+    "extraction",
+    "run",
+    "definitions",
+    "sources",
+    "contexts",
+    "units",
+    "excluded",
+    "removed",
+    "executions",
+    "coverage",
+    "diagnostics"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "enum": [
+        "1.0.0",
+        "1.1.0"
+      ]
+    },
+    "kind": {
+      "type": "string",
+      "const": "jevvy.comments.bundle"
+    },
+    "bundleId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "producer": {
+      "type": "object",
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "const": "jevvy"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "pack": {
+      "type": "object",
+      "required": [
+        "id",
+        "version",
+        "definitionHash"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "const": "comments"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "definitionHash": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "extraction": {
+      "type": "object",
+      "required": [
+        "version",
+        "napiVersion",
+        "grammars"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "napiVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "grammars": {
+          "type": "object",
+          "patternProperties": {
+            "^.*$": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "run": {
+      "type": "object",
+      "required": [
+        "mode",
+        "status",
+        "scope",
+        "snapshotId",
+        "requestedModel",
+        "resolvedModel",
+        "startedAt",
+        "finishedAt"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "live",
+            "dry_run",
+            "example"
+          ]
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "partial",
+            "cancelled",
+            "failed"
+          ]
+        },
+        "scope": {
+          "type": "object",
+          "required": [
+            "mode",
+            "root",
+            "files",
+            "base",
+            "head",
+            "mergeBase"
+          ],
+          "properties": {
+            "mode": {
+              "enum": [
+                "files",
+                "working",
+                "branch"
+              ]
+            },
+            "root": {
+              "type": "string",
+              "minLength": 1
+            },
+            "files": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "base": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "head": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "mergeBase": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "snapshotId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requestedModel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resolvedModel": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "startedAt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "finishedAt": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "definitions": {
+      "type": "object",
+      "patternProperties": {
+        "^.*$": {
+          "type": "object",
+          "required": [
+            "group",
+            "primitive",
+            "question",
+            "criteria",
+            "requires"
+          ],
+          "properties": {
+            "group": {
+              "enum": [
+                "purpose",
+                "quality",
+                "consistency"
+              ]
+            },
+            "primitive": {
+              "enum": [
+                "noul",
+                "choice",
+                "score"
+              ]
+            },
+            "question": {
+              "type": "string",
+              "minLength": 1
+            },
+            "criteria": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "patternProperties": {
+                    "^.*$": {
+                      "type": "string"
+                    }
+                  }
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 2,
+                  "maxItems": 10
+                }
+              ]
+            },
+            "requires": {
+              "enum": [
+                "text",
+                "local_context",
+                "complete_local"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "sources": {
+      "type": "object",
+      "patternProperties": {
+        "^.*$": {
+          "type": "object",
+          "required": [
+            "path",
+            "snapshot",
+            "contentHash",
+            "encoding",
+            "language",
+            "content"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "snapshot": {
+              "enum": [
+                "before",
+                "captured"
+              ]
+            },
+            "contentHash": {
+              "type": "string",
+              "minLength": 1
+            },
+            "encoding": {
+              "type": "string",
+              "const": "utf-8"
+            },
+            "language": {
+              "enum": [
+                "typescript",
+                "tsx",
+                "rust",
+                "python",
+                "solidity"
+              ]
+            },
+            "content": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "contexts": {
+      "type": "object",
+      "patternProperties": {
+        "^.*$": {
+          "type": "object",
+          "required": [
+            "sourceId",
+            "range",
+            "role",
+            "text"
+          ],
+          "properties": {
+            "sourceId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "range": {
+              "type": "object",
+              "required": [
+                "startUtf16",
+                "endUtf16",
+                "startLine",
+                "endLine"
+              ],
+              "properties": {
+                "startUtf16": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "endUtf16": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "startLine": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "endLine": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "additionalProperties": false
+            },
+            "role": {
+              "enum": [
+                "owner",
+                "header",
+                "surroundings"
+              ]
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "units": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "sourceId",
+          "range",
+          "text",
+          "structure",
+          "change",
+          "context",
+          "labels"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "range": {
+            "type": "object",
+            "required": [
+              "startUtf16",
+              "endUtf16",
+              "startLine",
+              "endLine"
+            ],
+            "properties": {
+              "startUtf16": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "endUtf16": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "startLine": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "endLine": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "text": {
+            "type": "string"
+          },
+          "structure": {
+            "type": "object",
+            "required": [
+              "syntax",
+              "documentationStyle",
+              "tags",
+              "owner",
+              "attachment"
+            ],
+            "properties": {
+              "syntax": {
+                "enum": [
+                  "line",
+                  "block",
+                  "string_literal",
+                  "doc_attribute",
+                  "unknown"
+                ]
+              },
+              "documentationStyle": {
+                "enum": [
+                  "jsdoc",
+                  "rustdoc",
+                  "python_docstring",
+                  "natspec",
+                  "none",
+                  "unknown"
+                ]
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "owner": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "name",
+                      "range"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "name": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "range": {
+                        "type": "object",
+                        "required": [
+                          "startUtf16",
+                          "endUtf16",
+                          "startLine",
+                          "endLine"
+                        ],
+                        "properties": {
+                          "startUtf16": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "endUtf16": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "startLine": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "endLine": {
+                            "type": "integer",
+                            "minimum": 1
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "attachment": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "evidence"
+                ],
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "syntactic",
+                      "adjacency_based",
+                      "unresolved"
+                    ]
+                  },
+                  "evidence": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          "change": {
+            "enum": [
+              "added",
+              "modified",
+              "associated_code",
+              "unchanged"
+            ]
+          },
+          "context": {
+            "type": "object",
+            "required": [
+              "status",
+              "refs",
+              "omissions"
+            ],
+            "properties": {
+              "status": {
+                "enum": [
+                  "complete_local",
+                  "partial",
+                  "unavailable"
+                ]
+              },
+              "refs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "omissions": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "labels": {
+            "type": "object",
+            "patternProperties": {
+              "^.*$": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "status",
+                      "packetId",
+                      "answer"
+                    ],
+                    "properties": {
+                      "status": {
+                        "type": "string",
+                        "const": "ok"
+                      },
+                      "packetId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "answer": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "required": [
+                              "type",
+                              "noul"
+                            ],
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "noul"
+                              },
+                              "noul": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "type",
+                              "choice",
+                              "probabilities",
+                              "confidence"
+                            ],
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "choice"
+                              },
+                              "choice": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "probabilities": {
+                                "type": "object",
+                                "patternProperties": {
+                                  "^.*$": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1
+                                  }
+                                }
+                              },
+                              "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              }
+                            },
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "type",
+                              "score",
+                              "probabilities",
+                              "legend",
+                              "confidence"
+                            ],
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "score"
+                              },
+                              "score": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 9
+                              },
+                              "probabilities": {
+                                "type": "object",
+                                "patternProperties": {
+                                  "^.*$": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1
+                                  }
+                                }
+                              },
+                              "legend": {
+                                "type": "object",
+                                "patternProperties": {
+                                  "^.*$": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "status",
+                      "reason"
+                    ],
+                    "properties": {
+                      "status": {
+                        "enum": [
+                          "not_applicable",
+                          "not_evaluated",
+                          "error",
+                          "cancelled"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "excluded": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "sourceId",
+          "range",
+          "text",
+          "reason"
+        ],
+        "properties": {
+          "sourceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "range": {
+            "type": "object",
+            "required": [
+              "startUtf16",
+              "endUtf16",
+              "startLine",
+              "endLine"
+            ],
+            "properties": {
+              "startUtf16": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "endUtf16": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "startLine": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "endLine": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "text": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "removed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "sourceId",
+          "range",
+          "text",
+          "reason"
+        ],
+        "properties": {
+          "sourceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "range": {
+            "type": "object",
+            "required": [
+              "startUtf16",
+              "endUtf16",
+              "startLine",
+              "endLine"
+            ],
+            "properties": {
+              "startUtf16": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "endUtf16": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "startLine": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "endLine": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "text": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "executions": {
+      "type": "object",
+      "patternProperties": {
+        "^.*$": {
+          "type": "object",
+          "required": [
+            "requestHash",
+            "request",
+            "bindings",
+            "origin",
+            "status",
+            "model",
+            "usage",
+            "cacheSource",
+            "diagnostics"
+          ],
+          "properties": {
+            "requestHash": {
+              "type": "string",
+              "minLength": 1
+            },
+            "request": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "model",
+                    "state",
+                    "questions"
+                  ],
+                  "properties": {
+                    "model": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "state": {
+                      "type": "object",
+                      "required": [
+                        "instruction",
+                        "contexts",
+                        "comments"
+                      ],
+                      "properties": {
+                        "instruction": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "contexts": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^.*$": {
+                              "type": "object",
+                              "required": [
+                                "text",
+                                "role"
+                              ],
+                              "properties": {
+                                "text": {
+                                  "type": "string"
+                                },
+                                "role": {
+                                  "type": "string"
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "comments": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^.*$": {
+                              "type": "object",
+                              "required": [
+                                "text",
+                                "structure",
+                                "contextRefs"
+                              ],
+                              "properties": {
+                                "text": {
+                                  "type": "string"
+                                },
+                                "structure": {
+                                  "type": "object",
+                                  "required": [
+                                    "syntax",
+                                    "documentationStyle",
+                                    "tags",
+                                    "owner",
+                                    "attachment"
+                                  ],
+                                  "properties": {
+                                    "syntax": {
+                                      "enum": [
+                                        "line",
+                                        "block",
+                                        "string_literal",
+                                        "doc_attribute",
+                                        "unknown"
+                                      ]
+                                    },
+                                    "documentationStyle": {
+                                      "enum": [
+                                        "jsdoc",
+                                        "rustdoc",
+                                        "python_docstring",
+                                        "natspec",
+                                        "none",
+                                        "unknown"
+                                      ]
+                                    },
+                                    "tags": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "owner": {
+                                      "anyOf": [
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "kind",
+                                            "name",
+                                            "range"
+                                          ],
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "minLength": 1
+                                            },
+                                            "name": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "range": {
+                                              "type": "object",
+                                              "required": [
+                                                "startUtf16",
+                                                "endUtf16",
+                                                "startLine",
+                                                "endLine"
+                                              ],
+                                              "properties": {
+                                                "startUtf16": {
+                                                  "type": "integer",
+                                                  "minimum": 0
+                                                },
+                                                "endUtf16": {
+                                                  "type": "integer",
+                                                  "minimum": 0
+                                                },
+                                                "startLine": {
+                                                  "type": "integer",
+                                                  "minimum": 1
+                                                },
+                                                "endLine": {
+                                                  "type": "integer",
+                                                  "minimum": 1
+                                                }
+                                              },
+                                              "additionalProperties": false
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "attachment": {
+                                      "type": "object",
+                                      "required": [
+                                        "kind",
+                                        "evidence"
+                                      ],
+                                      "properties": {
+                                        "kind": {
+                                          "enum": [
+                                            "syntactic",
+                                            "adjacency_based",
+                                            "unresolved"
+                                          ]
+                                        },
+                                        "evidence": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                "contextRefs": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "questions": {
+                      "type": "object",
+                      "patternProperties": {
+                        "^.*$": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "required": [
+                                "type",
+                                "instructions",
+                                "criteria"
+                              ],
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "const": "noul"
+                                },
+                                "instructions": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "criteria": {
+                                  "type": "object",
+                                  "required": [
+                                    "true",
+                                    "false"
+                                  ],
+                                  "properties": {
+                                    "true": {
+                                      "type": "string"
+                                    },
+                                    "false": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "required": [
+                                "type",
+                                "instructions",
+                                "criteria"
+                              ],
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "const": "choice"
+                                },
+                                "instructions": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "criteria": {
+                                  "type": "object",
+                                  "patternProperties": {
+                                    "^.*$": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "required": [
+                                "type",
+                                "instructions",
+                                "criteria"
+                              ],
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "const": "score"
+                                },
+                                "instructions": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "criteria": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "minItems": 2,
+                                  "maxItems": 10
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "model",
+                    "state",
+                    "questions"
+                  ],
+                  "properties": {
+                    "model": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "state": {
+                      "type": "object",
+                      "required": [
+                        "formatVersion",
+                        "instruction",
+                        "contexts",
+                        "comments"
+                      ],
+                      "properties": {
+                        "formatVersion": {
+                          "type": "string",
+                          "const": "2"
+                        },
+                        "instruction": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "contexts": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^.*$": {
+                              "type": "object",
+                              "required": [
+                                "text",
+                                "role"
+                              ],
+                              "properties": {
+                                "text": {
+                                  "type": "string"
+                                },
+                                "role": {
+                                  "type": "string"
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "comments": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^.*$": {
+                              "type": "object",
+                              "required": [
+                                "text",
+                                "language",
+                                "structure",
+                                "contextRefs",
+                                "contextStatus",
+                                "omissions",
+                                "occurrences"
+                              ],
+                              "properties": {
+                                "text": {
+                                  "type": "string"
+                                },
+                                "language": {
+                                  "enum": [
+                                    "typescript",
+                                    "tsx",
+                                    "rust",
+                                    "python",
+                                    "solidity"
+                                  ]
+                                },
+                                "structure": {
+                                  "type": "object",
+                                  "required": [
+                                    "syntax",
+                                    "documentationStyle",
+                                    "tags",
+                                    "owner",
+                                    "attachment"
+                                  ],
+                                  "properties": {
+                                    "syntax": {
+                                      "enum": [
+                                        "line",
+                                        "block",
+                                        "string_literal",
+                                        "doc_attribute",
+                                        "unknown"
+                                      ]
+                                    },
+                                    "documentationStyle": {
+                                      "enum": [
+                                        "jsdoc",
+                                        "rustdoc",
+                                        "python_docstring",
+                                        "natspec",
+                                        "none",
+                                        "unknown"
+                                      ]
+                                    },
+                                    "tags": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "owner": {
+                                      "anyOf": [
+                                        {
+                                          "type": "object",
+                                          "required": [
+                                            "kind",
+                                            "name"
+                                          ],
+                                          "properties": {
+                                            "kind": {
+                                              "type": "string",
+                                              "minLength": 1
+                                            },
+                                            "name": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "attachment": {
+                                      "type": "object",
+                                      "required": [
+                                        "kind",
+                                        "evidence"
+                                      ],
+                                      "properties": {
+                                        "kind": {
+                                          "enum": [
+                                            "syntactic",
+                                            "adjacency_based",
+                                            "unresolved"
+                                          ]
+                                        },
+                                        "evidence": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                },
+                                "contextRefs": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "contextStatus": {
+                                  "enum": [
+                                    "complete_local",
+                                    "partial",
+                                    "unavailable"
+                                  ]
+                                },
+                                "omissions": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "occurrences": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "required": [
+                                      "contextRef",
+                                      "range"
+                                    ],
+                                    "properties": {
+                                      "contextRef": {
+                                        "type": "string",
+                                        "minLength": 1
+                                      },
+                                      "range": {
+                                        "type": "object",
+                                        "required": [
+                                          "startUtf16",
+                                          "endUtf16",
+                                          "startLine",
+                                          "endLine"
+                                        ],
+                                        "properties": {
+                                          "startUtf16": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          },
+                                          "endUtf16": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          },
+                                          "startLine": {
+                                            "type": "integer",
+                                            "minimum": 1
+                                          },
+                                          "endLine": {
+                                            "type": "integer",
+                                            "minimum": 1
+                                          }
+                                        },
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "questions": {
+                      "type": "object",
+                      "patternProperties": {
+                        "^.*$": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "required": [
+                                "type",
+                                "instructions",
+                                "criteria"
+                              ],
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "const": "noul"
+                                },
+                                "instructions": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "criteria": {
+                                  "type": "object",
+                                  "required": [
+                                    "true",
+                                    "false"
+                                  ],
+                                  "properties": {
+                                    "true": {
+                                      "type": "string"
+                                    },
+                                    "false": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "additionalProperties": false
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "required": [
+                                "type",
+                                "instructions",
+                                "criteria"
+                              ],
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "const": "choice"
+                                },
+                                "instructions": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "criteria": {
+                                  "type": "object",
+                                  "patternProperties": {
+                                    "^.*$": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              },
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "required": [
+                                "type",
+                                "instructions",
+                                "criteria"
+                              ],
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "const": "score"
+                                },
+                                "instructions": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "criteria": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "minItems": 2,
+                                  "maxItems": 10
+                                }
+                              },
+                              "additionalProperties": false
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "bindings": {
+              "type": "object",
+              "patternProperties": {
+                "^.*$": {
+                  "type": "object",
+                  "required": [
+                    "unitId",
+                    "labelId",
+                    "targetId",
+                    "contextRefs"
+                  ],
+                  "properties": {
+                    "unitId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "labelId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "targetId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "contextRefs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "origin": {
+              "enum": [
+                "planned",
+                "provider",
+                "cache",
+                "synthetic"
+              ]
+            },
+            "status": {
+              "enum": [
+                "planned",
+                "ok",
+                "partial",
+                "error",
+                "cancelled"
+              ]
+            },
+            "model": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "usage": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "input_tokens",
+                    "output_tokens"
+                  ],
+                  "properties": {
+                    "input_tokens": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "output_tokens": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "cacheSource": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": [
+        "files",
+        "units",
+        "labels",
+        "cachedPackets"
+      ],
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "path",
+              "status",
+              "reason"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "status": {
+                "enum": [
+                  "parsed",
+                  "parse_error",
+                  "unsupported",
+                  "unreadable",
+                  "deleted",
+                  "cancelled"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "units": {
+          "type": "object",
+          "required": [
+            "selected",
+            "excluded",
+            "removed"
+          ],
+          "properties": {
+            "selected": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "excluded": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "removed": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "labels": {
+          "type": "object",
+          "required": [
+            "ok",
+            "not_applicable",
+            "not_evaluated",
+            "error",
+            "cancelled"
+          ],
+          "properties": {
+            "ok": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "not_applicable": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "not_evaluated": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "error": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cancelled": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "cachedPackets": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$id": "https://jevvy.dev/schemas/comments-bundle-1.1.0.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

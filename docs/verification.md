@@ -1,8 +1,17 @@
 # Verification evidence
 
-Checked on 21 September 2026 against the revision 3 product sheet. Milestones
-1–7 are implemented and verified to the bounds below. This is a record of
-working behaviour, not a publication or release approval process.
+The latest [handoff verification](handoff-verification.md) records 80 passing tests
+on macOS and Linux ARM64, live inference, selective retrieval, old-bundle compatibility
+and an expanded Pi review comparison. The initial results below remain historical evidence.
+
+Initial checks on 21 September 2026 covered the implementation of milestones
+1–7 against the revision 3 product sheet, within the bounds below. Subsequent
+[exploratory testing](exploratory-assessment.md) found ineffective interactive
+slash-command cancellation, incomplete decorated-method context and presentation
+and calibration gaps. The [repair and retest](exploratory-retest.md) records the
+fixes, 60 passing tests on macOS ARM64 and both Linux architectures, real
+interactive cancellation, and repeated live evaluations. Broad calibration and
+an advantage over direct Pi review remain unproven.
 
 ## Platform and host
 
@@ -20,8 +29,9 @@ registered Pi tools, command, frozen context retrieval and session reload.
 Each production smoke test parses TypeScript, TSX, Python, Rust and Solidity.
 The reload assertion obtains a new tool instance after `session.reload()` and
 parses Solidity again. Tests use Pi's real SDK/session runtime. The paired model
-review also invokes the registered tools through Pi. Interactive terminal layout
-has not been visually assessed. Linux results cover glibc; musl and other Linux
+review also invokes the registered tools through Pi. These initial checks did not
+assess the interactive terminal; the subsequent exploratory assessment records
+real PTY interaction and its findings. Linux results cover glibc; musl and other Linux
 distributions were not tested. x64 checks use emulation, not physical Intel hosts.
 Node 22.19 is the dependency minimum, not an additional tested runtime.
 

@@ -10,10 +10,12 @@ import { planRequests } from './plan.js';
 import { bounded } from './queue.js';
 import { validateBundle, validateInput, validateResponse } from './validate.js';
 import { saveBundle, updateCoverage } from './bundle.js';
-import { jevTransport, transportError, type Transport } from './jev.js';
+import { jevTransport, transportError, isModelAlias, type Transport } from './jev.js';
 import { cached, storeCache } from './cache.js';
+import { initialProgress, type ScanProgress, type ScanStage } from './progress.js';
+export type { ScanProgress } from './progress.js';
 
-export interface ScanOptions { cwd: string; config?: Partial<Config>; signal?: AbortSignal; transport?: Transport; persist?: boolean; onProgress?: (message: string) => void }
+export interface ScanOptions { cwd: string; config?: Partial<Config>; signal?: AbortSignal; transport?: Transport; persist?: boolean; onProgress?: (message: string) => void; onEvent?: (progress: ScanProgress) => void }
 export interface ScanResult { bundle: Bundle; path?: string }
 function sourceFor(file: CapturedFile, snapshot: Source['snapshot']): Source {
   const content = (snapshot === 'before' ? file.before : file.content)!;
@@ -61,15 +63,18 @@ function select(bundle: Bundle, file: CapturedFile, before: Extracted | undefine
 export async function scan(value: unknown, options: ScanOptions): Promise<ScanResult> {
   const input = validateInput(value), config = configuration(options.config);
   const startedAt = new Date().toISOString();
+  const progress = initialProgress(`bundle_${randomUUID()}`, input.dryRun ?? false, Date.parse(startedAt));
+  const emit = (stage: ScanStage) => { progress.stage = stage; options.onEvent?.(structuredClone(progress)); };
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(new Error('Run deadline exceeded')), config.runTimeoutMs);
   timer.unref();
   const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
   try {
+    emit('capture');
     options.onProgress?.('Capturing source');
     const capture = await captureScope(input, options.cwd, signal);
     const bundle: Bundle = {
-      schemaVersion: '1.0.0', kind: 'jevvy.comments.bundle', bundleId: `bundle_${randomUUID()}`,
+      schemaVersion: '1.1.0', kind: 'jevvy.comments.bundle', bundleId: progress.runId,
       producer: { name: 'jevvy', version: '0.1.0' }, pack: { id: 'comments', version: PACK_VERSION, definitionHash }, extraction: extractionMetadata,
       run: { mode: input.dryRun ? 'dry_run' : 'live', status: 'completed', scope: capture.scope, snapshotId: identity('snapshot', capture.files.map(f => ({ path: f.path, oldPath: f.oldPath, before: f.before === null ? null : hash(f.before), content: f.content === null ? null : hash(f.content) }))), requestedModel: config.model, resolvedModel: null, startedAt, finishedAt: startedAt },
       definitions: structuredClone(definitions), sources: {}, contexts: {}, units: [], excluded: [], removed: [], executions: {},
@@ -77,14 +82,18 @@ export async function scan(value: unknown, options: ScanOptions): Promise<ScanRe
     };
     type Parsed = { file: CapturedFile; sources: Source[]; before?: Extracted; current?: Extracted; error?: string; cancelled?: boolean };
     const parsed: Parsed[] = new Array(capture.files.length);
+    progress.files.total = capture.files.length;
+    emit('extract');
     await bounded(capture.files, config.parseConcurrency, async (file, index) => {
       const p: Parsed = { file, sources: [] }; parsed[index] = p;
-      if (signal.aborted) { p.cancelled = true; return; }
+      if (signal.aborted) { p.cancelled = true; progress.files.completed++; emit('extract'); return; }
+      progress.file = file.path;
       options.onProgress?.(`Extracting ${file.path}`);
       try {
         if (file.before !== null) { const s = sourceFor(file, 'before'); p.sources.push(s); p.before = await extractComments(sourceId(s), s, config); }
         if (file.content !== null) { const s = sourceFor(file, 'captured'); p.sources.push(s); p.current = await extractComments(sourceId(s), s, config); }
       } catch (e) { p.error = transportError(e); }
+      progress.files.completed++; emit('extract');
     });
     for (const p of parsed) {
       if (p.cancelled || p.error) {
@@ -100,6 +109,10 @@ export async function scan(value: unknown, options: ScanOptions): Promise<ScanRe
     }
     bundle.units.sort((a, b) => bundle.sources[a.sourceId]!.path.localeCompare(bundle.sources[b.sourceId]!.path, 'en') || a.range.startUtf16 - b.range.startUtf16);
     planRequests(bundle, config);
+    delete progress.file;
+    progress.comments = bundle.units.length;
+    progress.packets.total = Object.keys(bundle.executions).length;
+    emit('plan');
     updateCoverage(bundle);
     if (signal.aborted) bundle.run.status = 'cancelled';
     else if (bundle.coverage.files.some(f => ['parse_error', 'unreadable'].includes(f.status))) bundle.run.status = bundle.units.length ? 'partial' : 'failed';
@@ -113,14 +126,15 @@ export async function scan(value: unknown, options: ScanOptions): Promise<ScanRe
           e.status = status; e.diagnostics.push(reason);
           for (const binding of Object.values(e.bindings)) units.get(binding.unitId)!.labels[binding.labelId] = { status, reason };
         };
-        if (signal.aborted) { mark('cancelled', 'Run cancelled before request'); return; }
+        if (signal.aborted) { mark('cancelled', 'Run cancelled before request'); progress.packets.cancelled++; progress.packets.completed++; emit('analyse'); return; }
+        progress.packets.active++; emit('analyse');
         try {
           const hit = await cached(config, bundle, e);
           if (!hit) transport ??= jevTransport(config);
           e.origin = hit ? 'cache' : 'provider';
           const raw = hit ? hit.response : await transport!(e.request, signal);
           const result = validateResponse(raw, e);
-          if (!config.model.endsWith('-latest') && result.model !== config.model) throw new Error('Provider returned a different model than requested');
+          if (!isModelAlias(config.model) && result.model !== config.model) throw new Error('Provider returned a different model than requested');
           e.origin = hit ? 'cache' : 'provider'; e.cacheSource = hit?.bundleId ?? null;
           e.model = result.model; e.usage = result.usage;
           e.status = Object.keys(result.errors).length ? (Object.keys(result.answers).length ? 'partial' : 'error') : 'ok';
@@ -130,6 +144,11 @@ export async function scan(value: unknown, options: ScanOptions): Promise<ScanRe
           }
           if (!hit) try { await storeCache(config, bundle, e, result); } catch { e.diagnostics.push('Cache write failed; results retained'); }
         } catch (error) { mark(signal.aborted ? 'cancelled' : 'error', signal.aborted ? 'Run cancelled during request' : transportError(error)); }
+        progress.packets.active--;
+        progress.packets.completed++;
+        if (e.status !== 'planned') progress.packets[e.status]++;
+        if (e.origin === 'cache') progress.packets.cached++;
+        emit('analyse');
         options.onProgress?.(`Processed ${++finished}/${Object.keys(bundle.executions).length} packets`);
       });
     }
@@ -142,7 +161,10 @@ export async function scan(value: unknown, options: ScanOptions): Promise<ScanRe
     else if (bundle.coverage.labels.error || failedFiles) bundle.run.status = bundle.coverage.labels.ok || bundle.units.length ? 'partial' : 'failed';
     bundle.run.finishedAt = new Date().toISOString();
     validateBundle(bundle);
+    emit('persist');
     const path = options.persist === false ? undefined : await saveBundle(bundle, config);
+    emit('complete');
     return { bundle, path };
-  } finally { clearTimeout(timer); }
+  } catch (error) { emit('failed'); throw error; }
+  finally { clearTimeout(timer); }
 }

@@ -2,6 +2,8 @@ import { TypeSafeClient, APIError } from '@typesafe-ai/sdk';
 import type { Question as SDKQuestion } from '@typesafe-ai/sdk';
 import type { Config, Request } from './contracts.js';
 
+export const isModelAlias = (model: string): boolean => model === 'jev-latest' || model === 'jev-preview';
+
 export type Transport = (request: Request, signal: AbortSignal) => Promise<unknown>;
 export function jevTransport(config: Config): Transport {
   // The endpoint is explicit so an unrelated TYPESAFE_BASE_URL override cannot

@@ -28,7 +28,7 @@ test('schema serialisation preserves shape checking and has a stable dialect/id'
   const f = await fixture({ 'one.ts': '// example\nfunction f() {}' }); t.after(f.cleanup);
   const r = await scan({ mode: 'files', files: ['one.ts'], dryRun: true }, { cwd: f.root, persist: false });
   const serialised = JSON.parse(JSON.stringify(BundleSchema));
-  assert.match(serialised.$id, /1\.0\.0/); assert.match(serialised.$schema, /2020-12/);
+  assert.match(serialised.$id, /1\.1\.0/); assert.match(serialised.$schema, /2020-12/);
   const check = Compile(serialised);
   assert.ok(check.Check(r.bundle));
   assert.ok(!check.Check({ ...r.bundle, unknown: 1 }));

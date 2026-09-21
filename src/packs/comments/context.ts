@@ -78,6 +78,12 @@ function ownerFor(comment: Comment, source: Source): { owner?: SgNode; attachmen
   const adapter = rules[source.language];
   if (comment.forcedOwner) return { owner: comment.forcedOwner, attachment: { kind: 'syntactic', evidence: 'First string expression in a Python module, class or function body' } };
   const first = comment.nodes[0]!, last = comment.nodes.at(-1)!;
+  // Some grammars include a trailing comment inside the just-closed body.
+  const closing = first.prev();
+  if (closing && kind(closing) === '}' && rangeOf(closing).endLine === comment.range.startLine && /^[\t ]*$/.test(source.content.slice(rangeOf(closing).endUtf16, comment.range.startUtf16))) {
+    const body = first.parent(), owner = body?.parent();
+    if (body && owner && ['statement_block', 'class_body', 'block'].includes(kind(body))) return { owner, attachment: { kind: 'adjacency_based', evidence: 'Trailing comment after the closing delimiter of its declaration or block' } };
+  }
   if (source.language === 'rust' && /^(\/\/!|\/\*!|#!\[)/.test(first.text())) {
     const owner = ancestors(first).find(n => adapter.declarations.has(kind(n)) || adapter.callables.has(kind(n)) || kind(n) === 'source_file');
     return { owner, attachment: { kind: 'syntactic', evidence: 'Rust inner documentation describes its enclosing item or module' } };
@@ -87,13 +93,14 @@ function ownerFor(comment: Comment, source: Source): { owner?: SgNode; attachmen
     return { owner: previous, attachment: { kind: 'adjacency_based', evidence: 'Trailing comment on the same line as the preceding syntax node' } };
   }
   let next = last.next();
-  while (next && (adapter.comments.has(kind(next)) || ['attribute_item', 'inner_attribute_item'].includes(kind(next)))) next = next.next();
+  const wrappers = source.language === 'typescript' || source.language === 'tsx' ? ['decorator'] : source.language === 'rust' ? ['attribute_item', 'inner_attribute_item'] : [];
+  while (next && (adapter.comments.has(kind(next)) || wrappers.includes(kind(next)))) next = next.next();
   if (next?.isNamed() && !['ERROR', 'else_clause', 'elif_clause', 'catch_clause', 'finally_clause'].includes(kind(next))) {
     const between = source.content.slice(rangeOf(last).endUtf16, rangeOf(next).startUtf16);
     const adjacent = /^\s*$/.test(between) && (between.match(/\n/g)?.length ?? 0) <= 1;
-    // Rust attributes between a doc comment and its item are syntax wrappers.
+    // Attributes/decorators bridge the comment and its declaration; prose alone does not.
     const betweenNodes = last.nextAll().filter(n => rangeOf(n).startUtf16 < rangeOf(next!).startUtf16);
-    const attributesOnly = source.language === 'rust' && betweenNodes.length > 0 && betweenNodes.every(n => ['attribute_item', 'line_comment', 'block_comment'].includes(kind(n)));
+    const attributesOnly = betweenNodes.some(n => wrappers.includes(kind(n))) && betweenNodes.every(n => wrappers.includes(kind(n)) || adapter.comments.has(kind(n)));
     if (adjacent || attributesOnly) return { owner: next, attachment: { kind: 'adjacency_based', evidence: 'Immediately leading comment at the same syntax nesting level' } };
   }
   return { attachment: { kind: 'unresolved', evidence: 'No unambiguous local syntax or adjacency association' } };
@@ -123,7 +130,16 @@ export async function extractComments(sourceId: string, source: Source, config: 
       const callable = adapter.callables.has(kind(owner)) ? owner : ancestors(owner).find(n => adapter.callables.has(kind(n)));
       let wrapped = callable ?? owner;
       while (wrapped.parent() && rules[source.language].wrappers.has(kind(wrapped.parent()!))) wrapped = wrapped.parent()!;
-      const range = rangeOf(wrapped);
+      let range = rangeOf(wrapped);
+      // Rust attributes and TypeScript method decorators are sibling nodes.
+      const siblingWrappers = source.language === 'rust' ? new Set(['attribute_item'])
+        : source.language === 'typescript' || source.language === 'tsx' ? new Set(['decorator']) : new Set<string>();
+      let previous = wrapped.prev();
+      while (previous) {
+        if (siblingWrappers.has(kind(previous))) range = rangeFor(source.content, rangeOf(previous).startUtf16, range.endUtf16);
+        else if (!(source.language === 'rust' && adapter.comments.has(kind(previous)))) break;
+        previous = previous.prev();
+      }
       if (range.endUtf16 - range.startUtf16 <= config.maxContextChars) add(range, 'owner');
       else { status = 'partial'; omissions.push('oversized_owner'); }
       // Headers preserve enclosing callable/class meaning for statement owners.
@@ -149,7 +165,9 @@ export async function extractComments(sourceId: string, source: Source, config: 
     }
     if (!refs.length) status = 'unavailable';
     const namingOwner = owner && (owner.field('name') ? owner : ancestors(owner).find(n => rules[source.language].callables.has(kind(n)) || rules[source.language].declarations.has(kind(n))));
-    const name = namingOwner?.field('name')?.text() ?? (owner && walk(owner).find(n => ['function_declaration', 'function_item', 'function_definition', 'variable_declarator', 'class_declaration', 'contract_declaration'].includes(kind(n)))?.field('name')?.text()) ?? null;
+    let declaration = owner;
+    while (declaration && rules[source.language].wrappers.has(kind(declaration))) declaration = declaration.namedChildren().find(n => !['decorator', 'comment'].includes(kind(n)));
+    const name = namingOwner?.field('name')?.text() ?? declaration?.field('name')?.text() ?? (declaration && ['lexical_declaration', 'variable_declaration'].includes(kind(declaration)) ? declaration.namedChildren().find(n => kind(n) === 'variable_declarator')?.field('name')?.text() : undefined) ?? null;
     const structure: Structure = { syntax: comment.syntax, documentationStyle: comment.style, tags: [...new Set([...text.matchAll(/@([a-zA-Z][\w-]*)/g)].map(m => m[1]!))], owner: owner && ownerRange ? { kind: kind(owner), name, range: ownerRange } : null, attachment };
     units.push({ id: identity('unit', { sourceId, range: comment.range, extraction: EXTRACTION_VERSION }), sourceId, range: comment.range, text, structure, change: 'unchanged', context: { status, refs, omissions }, labels: {} });
   }

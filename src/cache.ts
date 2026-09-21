@@ -3,6 +3,7 @@ import { Compile } from 'typebox/compile';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { AnswerSchema, UsageSchema, type Bundle, type Config, type Execution } from './contracts.js';
+import { isModelAlias } from './jev.js';
 import { hash } from './hash.js';
 import { validateResponse } from './validate.js';
 
@@ -17,7 +18,7 @@ function cacheKey(bundle: Bundle, execution: Execution): string {
 export async function cached(config: Config, bundle: Bundle, execution: Execution): Promise<Type.Static<typeof CacheSchema> | undefined> {
   // Aliases can change resolution between runs. They never reuse an old cache
   // entry without a current resolution; callers can pin a concrete model.
-  if (execution.request.model.endsWith('-latest')) return;
+  if (isModelAlias(execution.request.model)) return;
   const key = cacheKey(bundle, execution);
   try {
     const value: unknown = JSON.parse(await readFile(join(config.storageDir, 'cache', `${key}.json`), 'utf8'));
@@ -30,7 +31,7 @@ export async function cached(config: Config, bundle: Bundle, execution: Executio
   }
 }
 export async function storeCache(config: Config, bundle: Bundle, execution: Execution, response: ReturnType<typeof validateResponse>): Promise<void> {
-  if (execution.status !== 'ok' || execution.request.model.endsWith('-latest') || execution.request.model !== response.model) return;
+  if (execution.status !== 'ok' || isModelAlias(execution.request.model) || execution.request.model !== response.model) return;
   const key = cacheKey(bundle, execution);
   await mkdir(join(config.storageDir, 'cache'), { recursive: true, mode: 0o700 });
   const value = { key, bundleId: bundle.bundleId, response: { model: response.model, usage: response.usage, answers: response.answers } };

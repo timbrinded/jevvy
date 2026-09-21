@@ -1,4 +1,5 @@
-import type { Bundle, Config, Execution, Request, Unit } from './contracts.js';
+import type { Bundle, Config, Execution, CurrentRequest, Unit } from './contracts.js';
+import { inferenceTarget } from './request.js';
 import { identity } from './hash.js';
 import { definitions, questionFor } from './packs/comments/questions.js';
 import { requestHash } from './validate.js';
@@ -15,14 +16,14 @@ export function planRequests(bundle: Bundle, config: Config): void {
     groups.set(group, [...(groups.get(group) ?? []), unit]);
   }
   for (const units of groups.values()) {
-    let request: Request = { model: config.model, state: { instruction, contexts: {}, comments: {} }, questions: {} };
+    let request: CurrentRequest = { model: config.model, state: { formatVersion: '2', instruction, contexts: {}, comments: {} }, questions: {} };
     let bindings: Execution['bindings'] = {};
     let targetMap = new Map<string, string>(), contextMap = new Map<string, string>();
     const flush = () => {
       if (!Object.keys(bindings).length) return;
       const packetId = identity('packet', { bindings, request });
       bundle.executions[packetId] = { requestHash: requestHash(request), request, bindings, origin: 'planned', status: 'planned', model: null, usage: null, cacheSource: null, diagnostics: [] };
-      request = { model: config.model, state: { instruction, contexts: {}, comments: {} }, questions: {} };
+      request = { model: config.model, state: { formatVersion: '2', instruction, contexts: {}, comments: {} }, questions: {} };
       bindings = {}; targetMap = new Map(); contextMap = new Map();
     };
     const add = (unit: Unit, labelId: string) => {
@@ -38,10 +39,10 @@ export function planRequests(bundle: Bundle, config: Config): void {
           }
           return local;
         });
-        request.state.comments[targetId] = { text: unit.text, structure: unit.structure, contextRefs };
+        request.state.comments[targetId] = inferenceTarget(bundle, unit, contextRefs);
       }
       const qid = `q_${Object.keys(bindings).length}`;
-      request.questions[qid] = questionFor(definitions[labelId]!, targetId);
+      request.questions[qid] = questionFor(definitions[labelId]!, targetId, request.state.comments[targetId]!.contextRefs);
       bindings[qid] = { unitId: unit.id, labelId, targetId, contextRefs: unit.context.refs };
     };
     for (const unit of units) for (const labelId of Object.keys(definitions)) {
@@ -53,7 +54,7 @@ export function planRequests(bundle: Bundle, config: Config): void {
         request = previous.request; bindings = previous.bindings; targetMap = previous.targetMap; contextMap = previous.contextMap;
         flush(); add(unit, labelId);
         if (Buffer.byteLength(JSON.stringify(request)) > config.maxRequestBytes) {
-          request = { model: config.model, state: { instruction, contexts: {}, comments: {} }, questions: {} };
+          request = { model: config.model, state: { formatVersion: '2', instruction, contexts: {}, comments: {} }, questions: {} };
           bindings = {}; targetMap.clear(); contextMap.clear();
           unit.labels[labelId] = { status: 'not_evaluated', reason: 'request_size_limit' };
         }

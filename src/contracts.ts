@@ -49,7 +49,7 @@ export const UnitSchema = object({
   labels: dictionary(LabelResultSchema),
 });
 export const InventorySchema = object({ sourceId: id, range: RangeSchema, text, reason: id });
-export const RequestSchema = object({
+export const LegacyRequestSchema = object({
   model: id,
   state: object({
     instruction: id,
@@ -58,6 +58,24 @@ export const RequestSchema = object({
   }),
   questions: dictionary(QuestionSchema),
 });
+export const InferenceTargetSchema = object({
+  text, language: LanguageSchema,
+  structure: object({ ...StructureSchema.properties, owner: nullable(object({ kind: id, name: nullable(text) })) }),
+  contextRefs: Type.Array(id),
+  contextStatus: UnitSchema.properties.context.properties.status,
+  omissions: Type.Array(id),
+  occurrences: Type.Array(object({ contextRef: id, range: RangeSchema })),
+});
+export const CurrentRequestSchema = object({
+  model: id,
+  state: object({
+    formatVersion: Type.Literal('2'), instruction: id,
+    contexts: dictionary(object({ text, role: text })),
+    comments: dictionary(InferenceTargetSchema),
+  }),
+  questions: dictionary(QuestionSchema),
+});
+export const RequestSchema = Type.Union([LegacyRequestSchema, CurrentRequestSchema]);
 export const BindingSchema = object({ unitId: id, labelId: id, targetId: id, contextRefs: Type.Array(id) });
 export const UsageSchema = object({ input_tokens: count, output_tokens: count });
 export const ExecutionSchema = object({
@@ -69,7 +87,7 @@ export const ExecutionSchema = object({
 });
 export const FileOutcomeSchema = object({ path: id, status: Type.Enum(['parsed', 'parse_error', 'unsupported', 'unreadable', 'deleted', 'cancelled']), reason: text });
 export const BundleSchema = Type.Object({
-  schemaVersion: Type.Literal('1.0.0'), kind: Type.Literal('jevvy.comments.bundle'), bundleId: id,
+  schemaVersion: Type.Enum(['1.0.0', '1.1.0']), kind: Type.Literal('jevvy.comments.bundle'), bundleId: id,
   producer: object({ name: Type.Literal('jevvy'), version: id }),
   pack: object({ id: Type.Literal('comments'), version: id, definitionHash: id }),
   extraction: object({ version: id, napiVersion: id, grammars: dictionary(id) }),
@@ -88,7 +106,7 @@ export const BundleSchema = Type.Object({
     cachedPackets: count,
   }),
   diagnostics: Type.Array(text),
-}, { additionalProperties: false, $id: 'https://jevvy.dev/schemas/comments-bundle-1.0.0.json', $schema: 'https://json-schema.org/draft/2020-12/schema' });
+}, { additionalProperties: false, $id: 'https://jevvy.dev/schemas/comments-bundle-1.1.0.json', $schema: 'https://json-schema.org/draft/2020-12/schema' });
 
 // Tool enums are plain JSON Schema enums, compatible with provider tool schemas.
 export const ScanInputSchema = object({
@@ -99,6 +117,10 @@ export const ResultsInputSchema = object({
   bundleId: id, view: Type.Optional(StringEnum(['overview', 'units', 'context'] as const)),
   cursor: Type.Optional(id), limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
   ids: Type.Optional(Type.Array(id)), sort: Type.Optional(id),
+  labels: Type.Optional(Type.Array(id, { minItems: 1 })),
+  direction: Type.Optional(StringEnum(['asc', 'desc'] as const)),
+  outcome: Type.Optional(id), includeContext: Type.Optional(Type.Boolean()),
+  includeDefinitions: Type.Optional(Type.Boolean()),
 });
 export const ConfigSchema = object({
   model: id, requestConcurrency: Type.Integer({ minimum: 1, maximum: 16 }),
@@ -124,3 +146,6 @@ export type Bundle = Type.Static<typeof BundleSchema>;
 export type ScanInput = Type.Static<typeof ScanInputSchema>;
 export type ResultsInput = Type.Static<typeof ResultsInputSchema>;
 export type Config = Type.Static<typeof ConfigSchema>;
+
+export type CurrentRequest = Type.Static<typeof CurrentRequestSchema>;
+export type InferenceTarget = Type.Static<typeof InferenceTargetSchema>;

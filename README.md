@@ -1,12 +1,29 @@
 # jevvy
 
-jevvy is a [Pi](https://github.com/badlogic/pi-mono) extension for reviewing code
-comments. It uses [Jev](https://docs.typesafe.ai/) to assess what comments explain,
-how clearly they communicate, and whether nearby code supports their claims.
-Results include the comments and the code used to assess them, so Pi can refer
-back to the source during a review. Analysis leaves source files unchanged.
+jevvy is a [Pi](https://github.com/badlogic/pi-mono) extension for improving the
+quality of generated code. It uses [Jev](https://docs.typesafe.ai/) to answer
+defined questions about source code and gives Pi the results alongside the
+source used to assess it. Pi uses that evidence to decide what to improve;
+Jevvy's analysis leaves source files unchanged.
 
-![jevvy extracts comments and local context, sends fixed questions to Jev, validates the answers and saves results for Pi.](docs/images/how-it-works.svg)
+Analysis is organised into **packs**. Each pack defines what to select, which
+context to include, what questions to ask and how to present the answers. The
+first pack reviews code comments. Further packs will extend the same workflow
+to functions and tests.
+
+![The comments pack extracts comments and local context, sends fixed questions to Jev, validates the answers and saves results for Pi.](docs/images/how-it-works.svg)
+
+## Packs
+
+| Pack | Status | Focus |
+| --- | --- | --- |
+| Comments | Available | What comments explain, how clearly they communicate and whether nearby code supports their claims. |
+| Functions | Planned | Local behaviour such as I/O, state mutation, authorisation and retries. |
+| Tests | Planned | The scenarios tests describe and the assertions they make. |
+
+Functions and tests are outlined in the [product sheet](docs/jevvy-product-sheet.md#deferred-expansion);
+their assessment questions are still to be defined. The commands below use the
+comments pack.
 
 ## Install
 
@@ -28,8 +45,9 @@ In Pi, try the included fixture:
 /jevvy comments --files fixtures/comments.ts --dry-run
 ```
 
-A dry-run shows the comments, code and exact questions that would be sent to
-Jev. It makes no inference calls and needs no API key.
+A dry-run lists selected comments without making inference calls or requiring an
+API key. Use `/jevvy results <bundle-id> --view units` for the exact planned
+requests, and `--view context` for their source code.
 
 For live analysis, set `TYPESAFE_API_KEY` in your shell before launching Pi,
 then run the same command without `--dry-run`. Requests use your TypeSafe
@@ -51,7 +69,7 @@ Pi's working directory; Git scans use its repository.
 | --- | --- | --- |
 | Files | `/jevvy comments --files src/example.ts src/other.ts` | All eligible comments in the named files. |
 | Working tree | `/jevvy comments --working` | Changes from HEAD, including non-ignored untracked files. |
-| Branch | `/jevvy comments --base origin/master-branch --head HEAD` | Changes from the base/head merge-base to head. Substitute your own base branch. |
+| Branch | `/jevvy comments --base origin/master --head HEAD` | Changes from the base/head merge-base to head. Substitute your own base branch. |
 
 Add `--dry-run` to any scan. A branch with no changes relative to its base has
 no comments to review.
@@ -68,7 +86,7 @@ and NatSpec. Strings that merely look like comments are ignored. Recognised lice
 machine directives are listed but excluded from prose assessment. Rust macros
 and inherited Solidity documentation are not expanded.
 
-## Assessments
+## Comment assessments
 
 Each selected comment has a result or an explicit status for 14 fixed questions:
 
@@ -90,23 +108,43 @@ code; it is a valid answer, not a failed request.
 
 ## Results
 
-A scan returns comment text, source locations, label values, supporting code
-and coverage counts. It also gives you a bundle ID to retrieve more detail:
+During a scan, a panel above the editor shows the current stage, packet progress,
+and elapsed time. You can keep typing or use `/jevvy cancel`. The result card
+shows coverage and errors; Pi's expand-tool-output action opens the report page
+(Ctrl+O with the default keybindings).
+
+Use `/jevvy inspect <bundle-id>` to browse the saved evidence. Left and right
+change pages, up and down scroll, and Tab switches between comments, the selected
+comment's frozen source, and question definitions. The inspector makes no API
+requests. Escape closes it, or use your configured Pi cancel key.
+
+A scan returns comment excerpts, source locations, label values, consistency
+probabilities and coverage counts. Supporting code and full comments are saved
+in the bundle and available through retrieval:
 
 ```text
 /jevvy results <bundle-id>
 /jevvy results <bundle-id> --view units --limit 5
 /jevvy results <bundle-id> --view units --limit 5 --cursor <cursor>
 /jevvy results <bundle-id> --view context --ids <context-id>
-/jevvy results <bundle-id> --view units --sort reader_value
+/jevvy results <bundle-id> --view units --labels reader_value --sort reader_value --direction asc
+/jevvy results <bundle-id> --view units --labels local_consistency --sort local_consistency --outcome contradicted --include-context --include-definitions
 ```
 
 The default results view explains the questions and score criteria. `units`
 shows comments with full answer distributions; `context` shows the saved code.
 Each page reports its selection, order, count, total and next cursor. Keep the
-same view, selection and order when following a cursor. Comments appear in
-source order unless sorted by a label; label sorting is descending, with missing
-values last.
+same query options, including page size, when following a cursor. Comments appear
+in source order unless you choose a sort. Use `--direction asc` or `desc`;
+missing measurements remain last. For Choice labels, `--outcome contradicted`
+sorts that outcome's probability. Without an outcome, Choice sorting uses the
+winning option's probability and labels that ordering explicitly.
+
+Use `--labels` to retrieve only the measurements you need. `--include-context`
+adds the comments' saved source, with shared excerpts shown once per page;
+`--include-definitions` adds the selected rubrics. Coverage and unsuccessful
+label statuses remain visible. These options also exist as `labels`, `direction`,
+`outcome`, `includeContext` and `includeDefinitions` on `jevvy_results`.
 
 Pi can invoke the same scans and retrieval through `jevvy_comments` and
 `jevvy_results`. Commands and tools share the engine and schemas. Tool content
@@ -121,7 +159,8 @@ excerpts are checked on save and load. See the [sample report](examples/jevvy-re
 and [bundle](examples/jevvy-results.example.json), which use synthetic values.
 
 Failed, missing and cancelled answers have explicit statuses rather than numeric
-scores. `/jevvy cancel` stops active scans and keeps completed answers; those
+scores. Command scans run in the background so `/jevvy cancel` can stop them.
+It keeps completed answers; those
 answers also survive failures in other requests. If a parser error, ambiguous
 attachment or size limit leaves context incomplete, questions requiring complete
 code context are skipped. Questions about wording can still run. The questions
@@ -141,6 +180,10 @@ and cached answers use private filesystem permissions in `~/.cache/jevvy`.
 Saving a new bundle removes bundles and cached answers older than the retention
 cutoff, which defaults to 30 days. Reading saved results needs no API key.
 
+Set `JEVVY_ANIMATION=0` before starting Pi for a static progress indicator.
+Progress still updates as work proceeds. Jevvy leaves the configured footer
+in place.
+
 Set `JEVVY_CONFIG` to a JSON object to override these defaults:
 
 | Setting | Default |
@@ -156,8 +199,8 @@ Set `JEVVY_CONFIG` to a JSON object to override these defaults:
 
 Cached answers are validated before reuse and must match the exact request,
 pinned model, question definitions and parser versions. Invalid responses are
-not cached as successes. Choosing `jev-latest` disables cache reuse because the
-model behind that alias can change.
+not cached as successes. Choosing `jev-latest` or `jev-preview` disables cache reuse because the
+model behind an alias can change. Each result records the resolved version.
 
 ## Development
 
@@ -166,21 +209,27 @@ npm run check                          # Typecheck, tests and build
 node scripts/pi-check.mjs              # Pi commands, tools and reload
 node scripts/pi-check.mjs --live        # Live Jev calls through Pi
 node --import tsx scripts/live-check.ts # Direct live SDK check
+node --import tsx scripts/evaluate-handoff.ts # Controlled live request/rubric comparison
 ```
 
 Ordinary tests use fixture responses and make no paid API calls. Live checks use
 `TYPESAFE_API_KEY` and write their records to ignored `.artifacts/`.
 
-The [verification record](docs/verification.md) documents 53 passing tests,
-clean installs on macOS and Linux, and live runs with 196 successful labels
-across 14 comments. x64 checks used emulation; Linux checks used glibc containers.
+The [verification record](docs/verification.md) covers automated tests, platform
+checks and live inference. The [UI verification](docs/ui-verification.md) records
+live Pi sessions, Linux tmux, resizing, cancellation and footer coexistence.
+The [exploratory retest](docs/exploratory-retest.md)
+records the interactive cancellation and extraction repairs, repeated model
+results, and remaining calibration limits. x64 checks used emulation; Linux
+checks used glibc containers.
 
-In one [eight-comment comparison](docs/evaluation.md), reviews with and without
-jevvy made the same consistency classifications. The assisted review cited source
-lines more accurately but took longer and used more model context. That small
-fixture does not establish performance on larger reviews.
+In the latest [16-comment comparison](docs/handoff-verification.md), reviews with
+and without jevvy made the same consistency classifications. The assisted review
+cited source lines more accurately and used more model context. Selecting one
+label reduced the retrieved evidence text by 58%. These small fixtures do not
+establish better review accuracy or lower cost on larger projects.
 
-The [JSON Schema](schemas/comments-bundle-1.0.0.json) is generated from
+The [JSON Schema](schemas/comments-bundle-1.1.0.json) is generated from
 [TypeBox definitions](src/contracts.ts). See [bundle invariants](docs/contracts.md)
 for the checks between fields and requests, and the rounding tolerance used for
-Jev's answers.
+Jev's answers. Version 1.0.0 bundles remain readable under their original request rules.

@@ -43,3 +43,29 @@ the current manifest and records the originating bundle. Aliases are not cached.
 Configuration defaults are applied explicitly before validation. Pi may coerce
 tool arguments according to host behaviour, but Jev response and persisted bundle
 validation always use non-corrective checks.
+
+## Request versions and retrieval
+
+New bundles use schema 1.1.0 and request-state format 2. The reader also accepts
+1.0.0 bundles, validating their original request shape and question template.
+The published 1.0.0 schema is retained. Pack 1.2.0 corrects the restatement
+criterion;
+extraction 1.0.4 includes Rust declaration attributes.
+
+Format 2 names the language, context status, omissions and target occurrence
+ranges relative to supplied excerpts. Owner names/kinds remain, while file-wide
+owner offsets stay in the bundle. Questions name their context keys directly.
+The validator reconstructs this projection from the frozen source. Relocating an
+unchanged unit can reuse answers without reusing its old source coordinates.
+Rust attribute-only changes select attached documentation, and attribute size
+counts toward the context budget. Freshness is checked against the capture root;
+viewing from outside that scope produces a separate warning.
+
+Results can project selected labels, include their definitions, and include
+shared frozen contexts once per page. Unsuccessful statuses remain visible even
+for omitted labels. Source ordering remains the default. Explicit sorting accepts
+ascending/descending direction and a Choice outcome; missing values always sort
+last, with source order breaking ties. Without an outcome, Choice sorting retains
+its original winning-probability meaning and names it in the response. Cursors
+bind all effective query options, including label selection, included evidence
+and page size. Retrieval never invokes Jev or changes saved answers.

@@ -1,5 +1,16 @@
 # Paired review observation
 
+The latest [16-comment comparison](handoff-verification.md#selective-retrieval-and-actual-pi-review)
+lets Pi choose its retrieval. Both arms classified 16/16 correctly; the assisted arm
+had better source-line accuracy and used more model tokens. The eight-comment runs
+below are retained as earlier observations.
+
+A [subsequent repair and retest](exploratory-retest.md#quality-and-comparison-limits)
+repeated this comparison: both arms achieved 8/8 consistency classifications and
+8/8 source lines; source-only took 8.127 seconds and 3,707 Pi tokens, assisted took
+10.732 seconds and 14,014 Pi tokens plus Jev inference. The original observation
+below is retained for comparison; neither run establishes a general advantage.
+
 On 21 September 2026, two fresh Pi 0.86.1 sessions reviewed the same eight
 synthetic TypeScript comments using `google/gemini-3.8-flash`. Both received the
 same review task and source-data trust instruction. The baseline had only the

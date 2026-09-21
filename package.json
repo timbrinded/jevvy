@@ -3,10 +3,36 @@
   "version": "0.1.0",
   "description": "Source-linked comment analysis for Pi using Jev",
   "type": "module",
-  "engines": { "node": ">=22.19.0" },
-  "pi": { "extensions": ["./dist/extension.js"] },
-  "exports": { ".": "./dist/engine.js", "./contracts": "./dist/contracts.js" },
-  "files": ["dist", "native", "schemas", "examples", "README.md", "docs/contracts.md", "docs/verification.md", "docs/evaluation.md", "docs/images"],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "pi": {
+    "extensions": [
+      "./dist/extension.js"
+    ]
+  },
+  "exports": {
+    ".": "./dist/engine.js",
+    "./contracts": "./dist/contracts.js"
+  },
+  "files": [
+    "dist",
+    "native",
+    "schemas",
+    "examples",
+    "README.md",
+    "docs/contracts.md",
+    "docs/verification.md",
+    "docs/evaluation.md",
+    "docs/exploratory-assessment.md",
+    "docs/exploratory-retest.md",
+    "docs/images",
+    "docs/ui-verification.md",
+    "docs/ui-exploration.md",
+    "docs/handoff-verification.md",
+    "docs/cookbook-assessment.md",
+    "docs/jevvy-product-sheet.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
@@ -14,15 +40,20 @@
     "check": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
-    "@ast-grep/napi": "0.45.3",
     "@ast-grep/lang-python": "0.0.6",
     "@ast-grep/lang-rust": "0.0.7",
+    "@ast-grep/napi": "0.45.3",
     "@typesafe-ai/sdk": "0.6.0",
     "typebox": "1.3.27"
   },
-  "peerDependencies": { "@earendil-works/pi-coding-agent": "0.86.1", "@earendil-works/pi-ai": "0.86.1" },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "0.86.1",
+    "@earendil-works/pi-coding-agent": "0.86.1",
+    "@earendil-works/pi-tui": "0.86.1"
+  },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "0.86.1",
+    "@earendil-works/pi-tui": "0.86.1",
     "@types/node": "^22.19.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.3"

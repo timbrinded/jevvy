@@ -2,6 +2,7 @@ import { Compile } from 'typebox/compile';
 import { Type, type TSchema } from 'typebox';
 import { AnswerSchema, BundleSchema, ConfigSchema, ScanInputSchema, ResultsInputSchema, RequestSchema, type Answer, type Bundle, type Execution, type Question, type Request, type ScanInput } from './contracts.js';
 import { canonical, hash } from './hash.js';
+import { inferenceTarget } from './request.js';
 import { questionFor } from './packs/comments/questions.js';
 
 export const validators = {
@@ -80,8 +81,13 @@ export function validateBundle(value: unknown): Bundle {
   for (const c of Object.values(b.contexts)) excerpt(c.sourceId, c.range, c.text);
   const units = new Map(b.units.map(u => [u.id, u]));
   if (units.size !== b.units.length) fail('duplicate unit ID');
+  for (const u of b.units) {
+    if (!b.sources[u.sourceId] || u.context.refs.some(ref => b.contexts[ref]?.sourceId !== u.sourceId)) fail('unit context reference');
+  }
   const bound = new Set<string>();
   for (const [packetId, e] of Object.entries(b.executions)) {
+    const currentRequest = 'formatVersion' in e.request.state;
+    if (currentRequest !== (b.schemaVersion === '1.1.0')) fail('request format differs from bundle version');
     if (requestHash(e.request) !== e.requestHash || !sameKeys(e.bindings, e.request.questions)) fail('request hash or manifest mismatch');
     const targets = new Set(Object.values(e.bindings).map(binding => binding.targetId));
     if (canonical([...targets].sort()) !== canonical(Object.keys(e.request.state.comments).sort())) fail('unbound request target');
@@ -93,16 +99,17 @@ export function validateBundle(value: unknown): Bundle {
       const key = `${binding.unitId}/${binding.labelId}`;
       if (bound.has(key)) fail('duplicate binding');
       bound.add(key);
-      if (binding.contextRefs.some(ref => !unit!.context.refs.includes(ref))) fail('binding context differs from unit');
+      if (canonical(binding.contextRefs) !== canonical(unit!.context.refs)) fail('binding context differs from unit');
       const target = e.request.state.comments[binding.targetId] ?? fail('missing request target');
-      if (target.text !== unit!.text || canonical(target.structure) !== canonical(unit!.structure)) fail('request target differs from unit');
+      const expectedTarget = currentRequest ? inferenceTarget(b, unit!, target.contextRefs) : { text: unit!.text, structure: unit!.structure, contextRefs: target.contextRefs };
+      if (canonical(target) !== canonical(expectedTarget)) fail('request target differs from unit');
       if (target.contextRefs.length !== binding.contextRefs.length) fail('request context mapping');
       for (let i = 0; i < target.contextRefs.length; i++) {
         const sent = e.request.state.contexts[target.contextRefs[i]!];
         const frozen = b.contexts[binding.contextRefs[i]!];
         if (!sent || !frozen || sent.text !== frozen.text || sent.role !== frozen.role) fail('request evidence differs from frozen context');
       }
-      if (canonical(e.request.questions[questionId]) !== canonical(questionFor(b.definitions[binding.labelId]!, binding.targetId))) fail('request question differs from bound label definition');
+      if (canonical(e.request.questions[questionId]) !== canonical(questionFor(b.definitions[binding.labelId]!, binding.targetId, currentRequest ? target.contextRefs : undefined))) fail('request question differs from bound label definition');
       const label = unit!.labels[binding.labelId];
       if (label?.status === 'ok') {
         if (label.packetId !== packetId) fail('label routed to wrong packet');

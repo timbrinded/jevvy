@@ -17,7 +17,8 @@ try {
   assert.deepEqual(loader.getExtensions().errors, []);
   ({ session } = await createAgentSession({ cwd, agentDir, settingsManager, resourceLoader: loader, sessionManager: SessionManager.inMemory(cwd), tools: ['jevvy_comments', 'jevvy_results'] }));
   const getTool = name => { const t = session.agent.state.tools.find(t => t.name === name); assert.ok(t, `Missing ${name}`); return t; };
-  const scan = await getTool('jevvy_comments').execute('scan', { mode: 'files', files: ['fixtures/comments.ts', 'fixtures/comments.py', 'fixtures/comments.rs', 'fixtures/comments.sol', 'fixtures/Card.tsx'], dryRun: !process.argv.includes('--live') }, new AbortController().signal);
+  const updates = [];
+  const scan = await getTool('jevvy_comments').execute('scan', { mode: 'files', files: ['fixtures/comments.ts', 'fixtures/comments.py', 'fixtures/comments.rs', 'fixtures/comments.sol', 'fixtures/Card.tsx'], dryRun: !process.argv.includes('--live') }, new AbortController().signal, update => updates.push(update));
   assert.ok(scan.details.bundleId);
   assert.ok(!scan.isError);
   const bundle = JSON.parse(await readFile(scan.details.path, 'utf8'));
@@ -28,12 +29,30 @@ try {
   assert.equal(bundle.coverage.labels[process.argv.includes('--live') ? 'ok' : 'not_evaluated'], 196);
   assert.match(scan.content[0].text, /selected/);
   assert.ok(scan.details.cursor);
+  assert.equal(scan.details.kind, 'jevvy-result');
+  assert.equal(updates[0].details.progress.stage, 'capture');
+  assert.ok(updates.some(update => update.details.progress.stage === 'plan' && update.details.progress.packets.total > 0));
+  assert.equal(updates.at(-1).details.progress.stage, 'complete');
   const overview = await getTool('jevvy_results').execute('overview', { bundleId: scan.details.bundleId, view: 'overview' }, new AbortController().signal);
   assert.match(overview.content[0].text, /writing_clarity/);
+  assert.equal(overview.details.view, 'overview');
+  assert.equal(overview.details.returned, 1);
   const context = await getTool('jevvy_results').execute('context', { bundleId: scan.details.bundleId, view: 'context', limit: 1 }, new AbortController().signal);
   assert.match(context.content[0].text, /returned=1/);
+  const selected = await getTool('jevvy_results').execute('selected', { bundleId: scan.details.bundleId, view: 'units', labels: ['local_consistency'], sort: 'local_consistency', outcome: 'contradicted', direction: 'desc', includeContext: true, includeDefinitions: true, limit: 2 }, new AbortController().signal);
+  assert.deepEqual(selected.details.labels, ['local_consistency']);
+  assert.equal(selected.details.includeContext, true);
+  assert.match(selected.content[0].text, /local_consistency \(choice/);
+  assert.match(selected.content[0].text, /context_/);
+  if (selected.details.cursor) {
+    const next = await getTool('jevvy_results').execute('selected-next', { bundleId: scan.details.bundleId, view: 'units', labels: ['local_consistency'], sort: 'local_consistency', outcome: 'contradicted', direction: 'desc', includeContext: true, includeDefinitions: true, limit: 2, cursor: selected.details.cursor }, new AbortController().signal);
+    assert.equal(next.details.returned, 2);
+  }
   const before = (await readdir(join(process.env.JEVVY_STORAGE_DIR, 'bundles'))).length;
   await session.prompt('/jevvy comments --files fixtures/comments.ts --dry-run');
+  // Slash scans yield the command handler so Pi can accept cancellation.
+  const deadline = Date.now() + 10000;
+  while (!session.messages.some(m => m.role === 'custom' && m.customType === 'jevvy-results') && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20));
   const after = (await readdir(join(process.env.JEVVY_STORAGE_DIR, 'bundles'))).length;
   assert.equal(after, before + 1);
   assert.ok(session.messages.some(m => m.role === 'custom' && m.customType === 'jevvy-results'));

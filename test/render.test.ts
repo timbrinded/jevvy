@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { scan } from '../src/engine.js';
 import { render, scanReport, currentSourceStatus } from '../src/render.js';
 import { parseCommand } from '../src/command.js';
-import { fixture } from './helpers.js';
+import { fixture, syntheticResponse } from './helpers.js';
 
 test('pagination discloses totals, preserves source order and binds its cursor', async t => {
   const f = await fixture({ 'one.ts': '// first\nfunction first() {}\n// second\nfunction second() {}' }); t.after(f.cleanup);
@@ -32,4 +32,27 @@ test('command routes enforce explicit scopes and preserve quoted paths', () => {
   assert.throws(() => parseCommand('comments --working --files one.ts'), /exactly one/);
   assert.throws(() => parseCommand('comments --files "unclosed'), /Unclosed/);
   assert.throws(() => parseCommand('comments --base'), /requires/);
+});
+
+test('initial report preserves near-tied choice probabilities and exposes failed-file reasons', async t => {
+  const f = await fixture({ 'one.ts': '/** Returns one. */\nfunction first() { return 1; }' }); t.after(f.cleanup);
+  const { bundle } = await scan({ mode: 'files', files: ['one.ts', 'missing.ts'] }, { cwd: f.root, persist: false, config: { storageDir: f.storageDir }, transport: async request => {
+    const response = syntheticResponse(request);
+    for (const [id, question] of Object.entries(request.questions)) if (question.type === 'choice') response.answers[id] = { type: 'choice', choice: 'contradicted', confidence: 0.14, probabilities: { contradicted: 0.36, locally_supported: 0.33, insufficient_evidence: 0.29, no_checkable_claim: 0.02 } };
+    return response;
+  } });
+  const text = scanReport(bundle).text;
+  assert.match(text, /missing.ts: Selected file does not exist/);
+  assert.match(text, /contradicted.*probabilities=.*0.36.*0.33.*0.29/);
+  assert.match(text, /confidence=0.14/);
+  assert.match(text, /Inspect that implementation/);
+  assert.doesNotMatch(text, /return 1;/);
+  assert.match(render(bundle, { bundleId: bundle.bundleId, view: 'context' }).text, /return 1;/);
+});
+test('dry-run keeps exact planned requests available without flooding the initial report', async t => {
+  const f = await fixture({ 'one.ts': '// reason\nfunction first() { return 1; }' }); t.after(f.cleanup);
+  const { bundle } = await scan({ mode: 'files', files: ['one.ts'], dryRun: true }, { cwd: f.root, persist: false });
+  assert.doesNotMatch(scanReport(bundle).text, /"questions":/);
+  assert.match(scanReport(bundle).text, /exact planned requests/);
+  assert.match(render(bundle, { bundleId: bundle.bundleId, view: 'units' }).text, /"questions":/);
 });

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { extname } from 'node:path';
 import type { Language, Range } from './contracts.js';
 
-export const EXTRACTION_VERSION = '1.0.2';
+export const EXTRACTION_VERSION = '1.0.4';
 export const extractionMetadata = { version: EXTRACTION_VERSION, napiVersion: '0.45.3', grammars: { typescript: '@ast-grep/napi@0.45.3', tsx: '@ast-grep/napi@0.45.3', python: '@ast-grep/lang-python@0.0.6', rust: '@ast-grep/lang-rust@0.0.7', solidity: 'tree-sitter-solidity@1.2.13' } };
 const grammarNames: Record<Language, string> = { typescript: 'TypeScript', tsx: 'Tsx', python: 'python', rust: 'rust', solidity: 'solidity' };
 const registryKey = Symbol.for('jevvy.parsers.0.45.3.2');
