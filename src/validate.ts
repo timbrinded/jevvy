@@ -13,6 +13,8 @@ import {
   type Question,
   type Request,
   type ScanInput,
+  type Unit,
+  type Context,
 } from './contracts.ts';
 import { canonical, hash } from './hash.ts';
 import { inferenceTarget } from './request.ts';
@@ -120,37 +122,89 @@ export function requestHash(request: Request): string {
   return hash(request);
 }
 
-export function validateBundle(value: unknown): Bundle {
-  if (!validators.bundle.Check(value))
-    throw new Error(`Invalid bundle shape: ${JSON.stringify(validators.bundle.Errors(value)).slice(0, 1500)}`);
-  const b = value;
-  const fail = (message: string): never => {
-    throw new Error(`Bundle invariant: ${message}`);
-  };
-  if (hash(b.definitions) !== b.pack.definitionHash) fail('definition hash');
-  const excerpt = (
-    sourceId: string,
-    range: { startUtf16: number; endUtf16: number; startLine: number; endLine: number },
-    text: string,
-  ) => {
-    const source = b.sources[sourceId];
-    if (!source || range.startUtf16 > range.endUtf16 || range.endUtf16 > source.content.length)
-      fail('invalid source/range');
-    if (source!.content.slice(range.startUtf16, range.endUtf16) !== text) fail('excerpt differs from frozen source');
-    if (
-      source!.content.slice(0, range.startUtf16).split('\n').length !== range.startLine ||
-      source!.content.slice(0, range.endUtf16).split('\n').length !== range.endLine
-    )
-      fail('display lines differ from range');
-  };
+function fail(message: string): never {
+  throw new Error(`Bundle invariant: ${message}`);
+}
+
+function validateExcerpt(b: Bundle, { sourceId, range, text }: Pick<Context, 'sourceId' | 'range' | 'text'>): void {
+  const source = b.sources[sourceId];
+  if (!source || range.startUtf16 > range.endUtf16 || range.endUtf16 > source.content.length)
+    fail('invalid source/range');
+  if (source!.content.slice(range.startUtf16, range.endUtf16) !== text) fail('excerpt differs from frozen source');
+  if (
+    source!.content.slice(0, range.startUtf16).split('\n').length !== range.startLine ||
+    source!.content.slice(0, range.endUtf16).split('\n').length !== range.endLine
+  )
+    fail('display lines differ from range');
+}
+
+function validateSources(b: Bundle): Map<string, Unit> {
   for (const s of Object.values(b.sources)) if (hash(s.content) !== s.contentHash) fail('source hash');
-  for (const c of Object.values(b.contexts)) excerpt(c.sourceId, c.range, c.text);
+  for (const c of Object.values(b.contexts)) validateExcerpt(b, c);
   const units = new Map(b.units.map(u => [u.id, u]));
   if (units.size !== b.units.length) fail('duplicate unit ID');
   for (const u of b.units) {
     if (!b.sources[u.sourceId] || u.context.refs.some(ref => b.contexts[ref]?.sourceId !== u.sourceId))
       fail('unit context reference');
   }
+  return units;
+}
+
+function validateTarget(b: Bundle, e: Execution, binding: Execution['bindings'][string], unit: Unit): string[] {
+  const currentRequest = 'formatVersion' in e.request.state;
+  if (canonical(binding.contextRefs) !== canonical(unit.context.refs)) fail('binding context differs from unit');
+  const target = e.request.state.comments[binding.targetId] ?? fail('missing request target');
+  const expectedTarget = currentRequest
+    ? inferenceTarget(b, unit, target.contextRefs)
+    : { text: unit.text, structure: unit.structure, contextRefs: target.contextRefs };
+  if (canonical(target) !== canonical(expectedTarget)) fail('request target differs from unit');
+  if (target.contextRefs.length !== binding.contextRefs.length) fail('request context mapping');
+  for (let i = 0; i < target.contextRefs.length; i++) {
+    const sent = e.request.state.contexts[target.contextRefs[i]!];
+    const frozen = b.contexts[binding.contextRefs[i]!];
+    if (!sent || !frozen || sent.text !== frozen.text || sent.role !== frozen.role)
+      fail('request evidence differs from frozen context');
+  }
+  return target.contextRefs;
+}
+
+function validateBindings(
+  b: Bundle,
+  e: Execution,
+  packetId: string,
+  { units, bound }: { units: Map<string, Unit>; bound: Set<string> },
+): void {
+  const currentRequest = 'formatVersion' in e.request.state;
+  for (const [questionId, binding] of Object.entries(e.bindings)) {
+    const unit = units.get(binding.unitId);
+    if (!unit || !Object.hasOwn(b.definitions, binding.labelId)) fail('binding references missing unit/label');
+    const key = `${binding.unitId}/${binding.labelId}`;
+    if (bound.has(key)) fail('duplicate binding');
+    bound.add(key);
+    const contextRefs = validateTarget(b, e, binding, unit!);
+    if (
+      canonical(e.request.questions[questionId]) !==
+      canonical(
+        questionFor(b.definitions[binding.labelId]!, binding.targetId, currentRequest ? contextRefs : undefined),
+      )
+    )
+      fail('request question differs from bound label definition');
+    const label = unit!.labels[binding.labelId];
+    if (label?.status === 'ok') {
+      if (label.packetId !== packetId) fail('label routed to wrong packet');
+      const error = answerError(label.answer, e.request.questions[questionId]!);
+      if (error) fail(error);
+      const requires = b.definitions[binding.labelId]!.requires;
+      if (
+        (requires === 'complete_local' && unit!.context.status !== 'complete_local') ||
+        (requires === 'local_context' && !unit!.context.refs.length)
+      )
+        fail('evaluated label without required context');
+    }
+  }
+}
+
+function validateExecutions(b: Bundle, units: Map<string, Unit>): Set<string> {
   const bound = new Set<string>();
   for (const [packetId, e] of Object.entries(b.executions)) {
     const currentRequest = 'formatVersion' in e.request.state;
@@ -163,49 +217,7 @@ export function validateBundle(value: unknown): Bundle {
     const contextKeys = new Set(Object.values(e.request.state.comments).flatMap(target => target.contextRefs));
     if (canonical([...contextKeys].sort()) !== canonical(Object.keys(e.request.state.contexts).sort()))
       fail('unreferenced request context');
-    for (const [questionId, binding] of Object.entries(e.bindings)) {
-      const unit = units.get(binding.unitId);
-      if (!unit || !Object.hasOwn(b.definitions, binding.labelId)) fail('binding references missing unit/label');
-      const key = `${binding.unitId}/${binding.labelId}`;
-      if (bound.has(key)) fail('duplicate binding');
-      bound.add(key);
-      if (canonical(binding.contextRefs) !== canonical(unit!.context.refs)) fail('binding context differs from unit');
-      const target = e.request.state.comments[binding.targetId] ?? fail('missing request target');
-      const expectedTarget = currentRequest
-        ? inferenceTarget(b, unit!, target.contextRefs)
-        : { text: unit!.text, structure: unit!.structure, contextRefs: target.contextRefs };
-      if (canonical(target) !== canonical(expectedTarget)) fail('request target differs from unit');
-      if (target.contextRefs.length !== binding.contextRefs.length) fail('request context mapping');
-      for (let i = 0; i < target.contextRefs.length; i++) {
-        const sent = e.request.state.contexts[target.contextRefs[i]!];
-        const frozen = b.contexts[binding.contextRefs[i]!];
-        if (!sent || !frozen || sent.text !== frozen.text || sent.role !== frozen.role)
-          fail('request evidence differs from frozen context');
-      }
-      if (
-        canonical(e.request.questions[questionId]) !==
-        canonical(
-          questionFor(
-            b.definitions[binding.labelId]!,
-            binding.targetId,
-            currentRequest ? target.contextRefs : undefined,
-          ),
-        )
-      )
-        fail('request question differs from bound label definition');
-      const label = unit!.labels[binding.labelId];
-      if (label?.status === 'ok') {
-        if (label.packetId !== packetId) fail('label routed to wrong packet');
-        const error = answerError(label.answer, e.request.questions[questionId]!);
-        if (error) fail(error);
-        const requires = b.definitions[binding.labelId]!.requires;
-        if (
-          (requires === 'complete_local' && unit!.context.status !== 'complete_local') ||
-          (requires === 'local_context' && !unit!.context.refs.length)
-        )
-          fail('evaluated label without required context');
-      }
-    }
+    validateBindings(b, e, packetId, { units, bound });
     if (
       e.status === 'ok' &&
       Object.values(e.bindings).some(binding => units.get(binding.unitId)!.labels[binding.labelId]?.status !== 'ok')
@@ -218,9 +230,13 @@ export function validateBundle(value: unknown): Bundle {
     )
       fail('live execution lacks provider provenance');
   }
+  return bound;
+}
+
+function validateUnitLabels(b: Bundle, bound: Set<string>): Bundle['coverage']['labels'] {
   const labels = { ok: 0, not_applicable: 0, not_evaluated: 0, error: 0, cancelled: 0 };
   for (const u of b.units) {
-    excerpt(u.sourceId, u.range, u.text);
+    validateExcerpt(b, u);
     if (!sameKeys(u.labels, b.definitions)) fail('unit label completeness');
     if (u.context.refs.some(ref => b.contexts[ref]?.sourceId !== u.sourceId)) fail('unit context reference');
     if (u.context.status === 'complete_local' && (!u.context.refs.length || u.context.omissions.length))
@@ -234,7 +250,10 @@ export function validateBundle(value: unknown): Bundle {
       if (b.run.mode === 'dry_run' && l.status === 'ok') fail('dry-run has invented answers');
     }
   }
-  for (const item of [...b.excluded, ...b.removed]) excerpt(item.sourceId, item.range, item.text);
+  return labels;
+}
+
+function validateCoverage(b: Bundle, labels: Bundle['coverage']['labels']): void {
   if (canonical(labels) !== canonical(b.coverage.labels)) fail('label coverage');
   if (
     b.coverage.units.selected !== b.units.length ||
@@ -253,5 +272,17 @@ export function validateBundle(value: unknown): Bundle {
       b.coverage.files.some(f => ['parse_error', 'unreadable', 'cancelled'].includes(f.status)))
   )
     fail('completed run has execution failures');
+}
+
+export function validateBundle(value: unknown): Bundle {
+  if (!validators.bundle.Check(value))
+    throw new Error(`Invalid bundle shape: ${JSON.stringify(validators.bundle.Errors(value)).slice(0, 1500)}`);
+  const b = value;
+  if (hash(b.definitions) !== b.pack.definitionHash) fail('definition hash');
+  const units = validateSources(b);
+  const bound = validateExecutions(b, units);
+  const labels = validateUnitLabels(b, bound);
+  for (const item of [...b.excluded, ...b.removed]) validateExcerpt(b, item);
+  validateCoverage(b, labels);
   return b;
 }

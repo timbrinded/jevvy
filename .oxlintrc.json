@@ -22,10 +22,9 @@
     // Nesting depth stays reviewable. Ratchet target is 4; two legacy sites
     // in src/packs/comments/context.ts and src/plan.ts sit at 5.
     "max-depth": ["error", 5],
-    // Cyclomatic complexity target is 10. Legacy hotspots (validateBundle,
-    // render, scan, extractComments, captureScope) exceed it and are tracked
-    // as warnings until they are split into smaller functions.
-    "complexity": ["warn", 10],
+    // Keep each function within 20 independent paths. Split distinct
+    // responsibilities when a function exceeds this limit.
+    "complexity": ["error", 20],
     // Functions take at most 4 parameters; wider signatures must become an
     // options object. Legacy warnings: ResultInspector (8), progressLines (6).
     "max-params": ["warn", 4],

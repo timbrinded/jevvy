@@ -122,17 +122,9 @@ export function affected(range: Range, changes: Change[], side: 'old' | 'new'): 
       : start <= range.endLine && start + count - 1 >= range.startLine;
   });
 }
-export async function captureScope(input: ScanInput, cwd: string, signal?: AbortSignal): Promise<Capture> {
-  let root = await realpath(cwd);
-  if (input.mode !== 'files') root = (await git(root, ['rev-parse', '--show-toplevel'])).trim();
-  const resolveRef = async (ref: string) =>
-    (await git(root, ['rev-parse', '--verify', '--end-of-options', `${ref}^{commit}`])).trim();
-  const head =
-    input.mode === 'files' ? null : await resolveRef(input.mode === 'branch' ? (input.head ?? 'HEAD') : 'HEAD');
-  const base = input.mode === 'branch' ? await resolveRef(input.base!) : head;
-  const mergeBase = input.mode === 'branch' ? (await git(root, ['merge-base', base!, head!])).trim() : null;
-  const scope: Capture['scope'] = { mode: input.mode, root, files: [], base, head, mergeBase };
-  const candidates: { path: string; oldPath: string; renamed: boolean }[] = [];
+type Candidate = { path: string; oldPath: string; renamed: boolean };
+async function scopeCandidates(input: ScanInput, { root, head, mergeBase }: Capture['scope']): Promise<Candidate[]> {
+  const candidates: Candidate[] = [];
   if (input.mode === 'files') {
     for (const path of input.files!)
       candidates.push({
@@ -173,6 +165,23 @@ export async function captureScope(input: ScanInput, cwd: string, signal?: Abort
     }
     for (const path of paths) candidates.push({ path, oldPath: renames.get(path) ?? path, renamed: renames.has(path) });
   }
+  return candidates;
+}
+async function resolveScope(input: ScanInput, cwd: string): Promise<Capture['scope']> {
+  let root = await realpath(cwd);
+  if (input.mode !== 'files') root = (await git(root, ['rev-parse', '--show-toplevel'])).trim();
+  const resolveRef = async (ref: string) =>
+    (await git(root, ['rev-parse', '--verify', '--end-of-options', `${ref}^{commit}`])).trim();
+  const head =
+    input.mode === 'files' ? null : await resolveRef(input.mode === 'branch' ? (input.head ?? 'HEAD') : 'HEAD');
+  const base = input.mode === 'branch' ? await resolveRef(input.base!) : head;
+  const mergeBase = input.mode === 'branch' ? (await git(root, ['merge-base', base!, head!])).trim() : null;
+  return { mode: input.mode, root, files: [], base, head, mergeBase };
+}
+export async function captureScope(input: ScanInput, cwd: string, signal?: AbortSignal): Promise<Capture> {
+  const scope = await resolveScope(input, cwd);
+  const { root, head, mergeBase } = scope;
+  const candidates = await scopeCandidates(input, scope);
   const result: Capture = { scope, files: [], outcomes: [], diagnostics: [] };
   const unique = new Map(candidates.map(c => [c.path, c]));
   scope.files = [...unique.keys()].sort();

@@ -31,6 +31,34 @@ function tokens(text: string): string[] {
   if (active) result.push(value);
   return result;
 }
+function parseResults(args: string[]): ResultsInput {
+  const input: ResultsInput = { bundleId: args.shift() ?? '' };
+  const next = (flag: string) => {
+    const value = args.shift();
+    if (!value || value.startsWith('--')) throw new Error(`${flag} requires a value`);
+    return value;
+  };
+  while (args.length) {
+    const flag = args.shift()!;
+    if (flag === '--view') input.view = next(flag) as ResultsInput['view'];
+    else if (flag === '--limit') input.limit = Number(next(flag));
+    else if (flag === '--cursor') input.cursor = next(flag);
+    else if (flag === '--sort') input.sort = next(flag);
+    else if (flag === '--direction') input.direction = next(flag) as ResultsInput['direction'];
+    else if (flag === '--outcome') input.outcome = next(flag);
+    else if (flag === '--include-context') input.includeContext = true;
+    else if (flag === '--include-definitions') input.includeDefinitions = true;
+    else if (flag === '--labels') {
+      input.labels = [];
+      while (args.length && !args[0]!.startsWith('--')) input.labels.push(args.shift()!);
+    } else if (flag === '--ids') {
+      input.ids = [];
+      while (args.length && !args[0]!.startsWith('--')) input.ids.push(args.shift()!);
+    } else throw new Error(`Unknown results option ${flag}`);
+  }
+  if (!validators.results.Check(input)) throw new Error('Invalid results arguments');
+  return input;
+}
 export function parseCommand(
   text: string,
 ):
@@ -42,34 +70,7 @@ export function parseCommand(
     action = args.shift();
   if (action === 'cancel' && !args.length) return { action: 'cancel' };
   if (action === 'inspect' && args.length === 1 && args[0]) return { action: 'inspect', bundleId: args[0] };
-  if (action === 'results') {
-    const input: ResultsInput = { bundleId: args.shift() ?? '' };
-    const next = (flag: string) => {
-      const value = args.shift();
-      if (!value || value.startsWith('--')) throw new Error(`${flag} requires a value`);
-      return value;
-    };
-    while (args.length) {
-      const flag = args.shift()!;
-      if (flag === '--view') input.view = next(flag) as ResultsInput['view'];
-      else if (flag === '--limit') input.limit = Number(next(flag));
-      else if (flag === '--cursor') input.cursor = next(flag);
-      else if (flag === '--sort') input.sort = next(flag);
-      else if (flag === '--direction') input.direction = next(flag) as ResultsInput['direction'];
-      else if (flag === '--outcome') input.outcome = next(flag);
-      else if (flag === '--include-context') input.includeContext = true;
-      else if (flag === '--include-definitions') input.includeDefinitions = true;
-      else if (flag === '--labels') {
-        input.labels = [];
-        while (args.length && !args[0]!.startsWith('--')) input.labels.push(args.shift()!);
-      } else if (flag === '--ids') {
-        input.ids = [];
-        while (args.length && !args[0]!.startsWith('--')) input.ids.push(args.shift()!);
-      } else throw new Error(`Unknown results option ${flag}`);
-    }
-    if (!validators.results.Check(input)) throw new Error('Invalid results arguments');
-    return { action: 'results', input };
-  }
+  if (action === 'results') return { action: 'results', input: parseResults(args) };
   if (action !== 'comments')
     throw new Error(
       'Usage: /jevvy comments --files <paths> | --working | --base <ref> [--head <ref>] [--dry-run]; /jevvy results <bundle-id>; /jevvy inspect <bundle-id>; /jevvy cancel',

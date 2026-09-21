@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Bundle, Config, Source, Unit } from './contracts.ts';
+import type { Bundle, Config, Source, Unit, Execution } from './contracts.ts';
 import { configuration } from './config.ts';
 import { hash, identity } from './hash.ts';
 import { extractionMetadata } from './ast.ts';
@@ -42,6 +42,66 @@ function sourceFor(file: CapturedFile, snapshot: Source['snapshot']): Source {
 function sourceId(source: Source): string {
   return identity('source', { path: source.path, snapshot: source.snapshot, contentHash: source.contentHash });
 }
+function removedUnits(before: Unit[], current: Unit[], changes: CapturedFile['changes']): Unit[] {
+  const unmatched = [...current];
+  const removed: Unit[] = [];
+  const matched = new Set<string>();
+  // Match named owners first so identical prose in two functions cannot
+  // consume the surviving function's evidence in source order. Only then
+  // allow unchanged prose to follow a moved/renamed owner.
+  for (const old of before) {
+    const index = unmatched.findIndex(
+      u =>
+        u.text === old.text &&
+        u.structure.owner?.name === old.structure.owner?.name &&
+        u.structure.owner?.kind === old.structure.owner?.kind,
+    );
+    if (index >= 0) {
+      unmatched.splice(index, 1);
+      matched.add(old.id);
+    }
+  }
+  for (const old of before) {
+    if (matched.has(old.id)) continue;
+    const index = unmatched.findIndex(u => u.text === old.text);
+    if (index >= 0) {
+      unmatched.splice(index, 1);
+      matched.add(old.id);
+    }
+  }
+  for (const old of before) {
+    if (matched.has(old.id)) continue;
+    const sameOwner = (u: Unit) =>
+      u.structure.owner?.name === old.structure.owner?.name && u.structure.owner?.kind === old.structure.owner?.kind;
+    // An old comment replaced in a two-sided hunk is modification history,
+    // not an independent removed current comment.
+    const replacement = changes.some(
+      c =>
+        c.oldCount > 0 &&
+        c.newCount > 0 &&
+        affected(old.range, [c], 'old') &&
+        unmatched.some(u => sameOwner(u) && affected(u.range, [c], 'new')),
+    );
+    if (!replacement) removed.push(old);
+  }
+  return removed;
+}
+function changedUnit(
+  unit: Unit,
+  before: Extracted | undefined,
+  changes: CapturedFile['changes'],
+  direct: boolean,
+): Unit['change'] {
+  const unchangedText = before?.units.some(
+    old => old.text === unit.text && old.structure.owner?.name === unit.structure.owner?.name,
+  );
+  if (!direct || unchangedText) return 'associated_code';
+  return before?.units.some(
+    old => affected(old.range, changes, 'old') && old.structure.owner?.name === unit.structure.owner?.name,
+  )
+    ? 'modified'
+    : 'added';
+}
 function select(
   bundle: Bundle,
   file: CapturedFile,
@@ -50,52 +110,13 @@ function select(
   beforeId?: string,
 ): void {
   if (beforeId && before) {
-    const unmatched = [...(current?.units ?? [])];
-    const matched = new Set<string>();
-    // Match named owners first so identical prose in two functions cannot
-    // consume the surviving function's evidence in source order. Only then
-    // allow unchanged prose to follow a moved/renamed owner.
-    for (const old of before.units) {
-      const index = unmatched.findIndex(
-        u =>
-          u.text === old.text &&
-          u.structure.owner?.name === old.structure.owner?.name &&
-          u.structure.owner?.kind === old.structure.owner?.kind,
-      );
-      if (index >= 0) {
-        unmatched.splice(index, 1);
-        matched.add(old.id);
-      }
-    }
-    for (const old of before.units) {
-      if (matched.has(old.id)) continue;
-      const index = unmatched.findIndex(u => u.text === old.text);
-      if (index >= 0) {
-        unmatched.splice(index, 1);
-        matched.add(old.id);
-      }
-    }
-    for (const old of before.units) {
-      if (matched.has(old.id)) continue;
-      const sameOwner = (u: Unit) =>
-        u.structure.owner?.name === old.structure.owner?.name && u.structure.owner?.kind === old.structure.owner?.kind;
-      // An old comment replaced in a two-sided hunk is modification history,
-      // not an independent removed current comment.
-      const replacement = file.changes.some(
-        c =>
-          c.oldCount > 0 &&
-          c.newCount > 0 &&
-          affected(old.range, [c], 'old') &&
-          unmatched.some(u => sameOwner(u) && affected(u.range, [c], 'new')),
-      );
-      if (!replacement)
-        bundle.removed.push({
-          sourceId: beforeId,
-          range: old.range,
-          text: old.text,
-          reason: 'removed_from_current_source',
-        });
-    }
+    for (const old of removedUnits(before.units, current?.units ?? [], file.changes))
+      bundle.removed.push({
+        sourceId: beforeId,
+        range: old.range,
+        text: old.text,
+        reason: 'removed_from_current_source',
+      });
   }
   if (!current) return;
   for (const item of current.excluded)
@@ -106,22 +127,98 @@ function select(
     const ownerChanged = unit.structure.owner && affected(unit.structure.owner.range, file.changes, 'new');
     const contextChanged = unit.context.refs.some(ref => affected(current.contexts[ref]!.range, file.changes, 'new'));
     if (bundle.run.scope.mode !== 'files' && !direct && !ownerChanged && !contextChanged && !file.renamed) continue;
-    const unchangedText = before?.units.some(
-      old => old.text === unit.text && old.structure.owner?.name === unit.structure.owner?.name,
-    );
-    unit.change =
-      bundle.run.scope.mode === 'files'
-        ? 'unchanged'
-        : direct && !unchangedText
-          ? before?.units.some(
-              old =>
-                affected(old.range, file.changes, 'old') && old.structure.owner?.name === unit.structure.owner?.name,
-            )
-            ? 'modified'
-            : 'added'
-          : 'associated_code';
+    unit.change = bundle.run.scope.mode === 'files' ? 'unchanged' : changedUnit(unit, before, file.changes, direct);
     bundle.units.push(unit);
     for (const ref of unit.context.refs) bundle.contexts[ref] = current.contexts[ref]!;
+  }
+}
+interface ScanContext {
+  signal: AbortSignal;
+  progress: ScanProgress;
+  emit: (stage: ScanStage) => void;
+  options: Pick<ScanOptions, 'onProgress'>;
+}
+async function extractFiles(
+  bundle: Bundle,
+  files: CapturedFile[],
+  config: Config,
+  context: ScanContext,
+): Promise<void> {
+  const { signal, progress, emit, options } = context;
+  type Parsed = {
+    file: CapturedFile;
+    sources: Source[];
+    before?: Extracted;
+    current?: Extracted;
+    error?: string;
+    cancelled?: boolean;
+  };
+  const parsed: Parsed[] = new Array(files.length);
+  progress.files.total = files.length;
+  emit('extract');
+  await bounded(files, config.parseConcurrency, async (file, index) => {
+    const p: Parsed = { file, sources: [] };
+    parsed[index] = p;
+    if (signal.aborted) {
+      p.cancelled = true;
+      progress.files.completed++;
+      emit('extract');
+      return;
+    }
+    progress.file = file.path;
+    options.onProgress?.(`Extracting ${file.path}`);
+    try {
+      if (file.before !== null) {
+        const s = sourceFor(file, 'before');
+        p.sources.push(s);
+        p.before = await extractComments(sourceId(s), s, config);
+      }
+      if (file.content !== null) {
+        const s = sourceFor(file, 'captured');
+        p.sources.push(s);
+        p.current = await extractComments(sourceId(s), s, config);
+      }
+    } catch (e) {
+      p.error = transportError(e);
+    }
+    progress.files.completed++;
+    emit('extract');
+  });
+  for (const p of parsed) {
+    if (p.cancelled || p.error) {
+      bundle.coverage.files.push({
+        path: p.file.path,
+        status: p.cancelled ? 'cancelled' : 'parse_error',
+        reason: p.error ?? 'Extraction cancelled',
+      });
+      if (p.error) bundle.diagnostics.push(`${p.file.path}: ${p.error}`);
+      continue;
+    }
+    for (const s of p.sources) bundle.sources[sourceId(s)] = s;
+    const beforeId = p.sources.find(s => s.snapshot === 'before');
+    select(bundle, p.file, p.before, p.current, beforeId && sourceId(beforeId));
+    const errors = (p.before?.errors.length ?? 0) + (p.current?.errors.length ?? 0);
+    bundle.coverage.files.push({
+      path: p.file.path,
+      status: p.file.content === null ? 'deleted' : errors ? 'parse_error' : 'parsed',
+      reason: errors ? `${errors} parser recovery ranges` : '',
+    });
+  }
+}
+function applyResponse(
+  e: Execution,
+  result: ReturnType<typeof validateResponse>,
+  packetId: string,
+  units: Map<string, Unit>,
+): void {
+  e.model = result.model;
+  e.usage = result.usage;
+  e.status = Object.keys(result.errors).length ? (Object.keys(result.answers).length ? 'partial' : 'error') : 'ok';
+  for (const [qid, binding] of Object.entries(e.bindings)) {
+    const unit = units.get(binding.unitId)!;
+    unit.labels[binding.labelId] = result.errors[qid]
+      ? { status: 'error', reason: result.errors[qid]! }
+      : { status: 'ok', packetId, answer: result.answers[qid]! };
   }
 }
 export async function scan(value: unknown, options: ScanOptions): Promise<ScanResult> {
@@ -181,65 +278,7 @@ export async function scan(value: unknown, options: ScanOptions): Promise<ScanRe
       },
       diagnostics: capture.diagnostics,
     };
-    type Parsed = {
-      file: CapturedFile;
-      sources: Source[];
-      before?: Extracted;
-      current?: Extracted;
-      error?: string;
-      cancelled?: boolean;
-    };
-    const parsed: Parsed[] = new Array(capture.files.length);
-    progress.files.total = capture.files.length;
-    emit('extract');
-    await bounded(capture.files, config.parseConcurrency, async (file, index) => {
-      const p: Parsed = { file, sources: [] };
-      parsed[index] = p;
-      if (signal.aborted) {
-        p.cancelled = true;
-        progress.files.completed++;
-        emit('extract');
-        return;
-      }
-      progress.file = file.path;
-      options.onProgress?.(`Extracting ${file.path}`);
-      try {
-        if (file.before !== null) {
-          const s = sourceFor(file, 'before');
-          p.sources.push(s);
-          p.before = await extractComments(sourceId(s), s, config);
-        }
-        if (file.content !== null) {
-          const s = sourceFor(file, 'captured');
-          p.sources.push(s);
-          p.current = await extractComments(sourceId(s), s, config);
-        }
-      } catch (e) {
-        p.error = transportError(e);
-      }
-      progress.files.completed++;
-      emit('extract');
-    });
-    for (const p of parsed) {
-      if (p.cancelled || p.error) {
-        bundle.coverage.files.push({
-          path: p.file.path,
-          status: p.cancelled ? 'cancelled' : 'parse_error',
-          reason: p.error ?? 'Extraction cancelled',
-        });
-        if (p.error) bundle.diagnostics.push(`${p.file.path}: ${p.error}`);
-        continue;
-      }
-      for (const s of p.sources) bundle.sources[sourceId(s)] = s;
-      const beforeId = p.sources.find(s => s.snapshot === 'before');
-      select(bundle, p.file, p.before, p.current, beforeId && sourceId(beforeId));
-      const errors = (p.before?.errors.length ?? 0) + (p.current?.errors.length ?? 0);
-      bundle.coverage.files.push({
-        path: p.file.path,
-        status: p.file.content === null ? 'deleted' : errors ? 'parse_error' : 'parsed',
-        reason: errors ? `${errors} parser recovery ranges` : '',
-      });
-    }
+    await extractFiles(bundle, capture.files, config, { signal, progress, emit, options });
     bundle.units.sort(
       (a, b) =>
         bundle.sources[a.sourceId]!.path.localeCompare(bundle.sources[b.sourceId]!.path, 'en') ||
@@ -285,19 +324,7 @@ export async function scan(value: unknown, options: ScanOptions): Promise<ScanRe
             throw new Error('Provider returned a different model than requested');
           e.origin = hit ? 'cache' : 'provider';
           e.cacheSource = hit?.bundleId ?? null;
-          e.model = result.model;
-          e.usage = result.usage;
-          e.status = Object.keys(result.errors).length
-            ? Object.keys(result.answers).length
-              ? 'partial'
-              : 'error'
-            : 'ok';
-          for (const [qid, binding] of Object.entries(e.bindings)) {
-            const unit = units.get(binding.unitId)!;
-            unit.labels[binding.labelId] = result.errors[qid]
-              ? { status: 'error', reason: result.errors[qid]! }
-              : { status: 'ok', packetId, answer: result.answers[qid]! };
-          }
+          applyResponse(e, result, packetId, units);
           if (!hit)
             try {
               await storeCache(config, bundle, e, result);

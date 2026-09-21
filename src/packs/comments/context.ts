@@ -49,6 +49,27 @@ function form(node: SgNode, language: Language): Pick<Comment, 'syntax' | 'style
   if ((language === 'typescript' || language === 'tsx') && text.startsWith('/**')) return { syntax, style: 'jsdoc' };
   return { syntax, style: 'none' };
 }
+function appendComment(found: Comment[], comment: Comment, source: Source): void {
+  const previous = found.at(-1);
+  const node = comment.nodes[0]!,
+    range = comment.range;
+  const language = source.language;
+  const gap = previous ? source.content.slice(previous.range.endUtf16, range.startUtf16) : '';
+  const sameRustScope =
+    language !== 'rust' || previous?.nodes[0]!.text().startsWith('//!') === node.text().startsWith('//!');
+  if (
+    comment.syntax === 'line' &&
+    previous?.syntax === 'line' &&
+    previous.style === comment.style &&
+    sameRustScope &&
+    !previous.excluded &&
+    previous.nodes.at(-1)?.parent()?.id() === node.parent()?.id() &&
+    /^[\t ]*\r?\n[\t ]*$/.test(gap)
+  ) {
+    previous.nodes.push(node);
+    previous.range = rangeFor(source.content, previous.range.startUtf16, range.endUtf16);
+  } else found.push(comment);
+}
 function inventory(root: SgNode, source: Source): Comment[] {
   const language = source.language,
     adapter = rules[language],
@@ -99,24 +120,34 @@ function inventory(root: SgNode, source: Source): Comment[] {
         continue;
       }
     }
-    const previous = found.at(-1);
-    const gap = previous ? source.content.slice(previous.range.endUtf16, range.startUtf16) : '';
-    const sameRustScope =
-      language !== 'rust' || previous?.nodes[0]!.text().startsWith('//!') === node.text().startsWith('//!');
-    if (
-      shape.syntax === 'line' &&
-      previous?.syntax === 'line' &&
-      previous.style === shape.style &&
-      sameRustScope &&
-      !previous.excluded &&
-      previous.nodes.at(-1)?.parent()?.id() === node.parent()?.id() &&
-      /^[\t ]*\r?\n[\t ]*$/.test(gap)
-    ) {
-      previous.nodes.push(node);
-      previous.range = rangeFor(source.content, previous.range.startUtf16, range.endUtf16);
-    } else found.push({ nodes: [node], range, ...shape, forcedOwner: owner });
+    appendComment(found, { nodes: [node], range, ...shape, forcedOwner: owner }, source);
   }
   return found;
+}
+function leadingOwner(comment: Comment, source: Source): SgNode | undefined {
+  const last = comment.nodes.at(-1)!,
+    adapter = rules[source.language];
+  let next = last.next();
+  const wrappers =
+    source.language === 'typescript' || source.language === 'tsx'
+      ? ['decorator']
+      : source.language === 'rust'
+        ? ['attribute_item', 'inner_attribute_item']
+        : [];
+  while (next && (adapter.comments.has(kind(next)) || wrappers.includes(kind(next)))) next = next.next();
+  if (
+    next?.isNamed() &&
+    !['ERROR', 'else_clause', 'elif_clause', 'catch_clause', 'finally_clause'].includes(kind(next))
+  ) {
+    const between = source.content.slice(rangeOf(last).endUtf16, rangeOf(next).startUtf16);
+    const adjacent = /^\s*$/.test(between) && (between.match(/\n/g)?.length ?? 0) <= 1;
+    // Attributes/decorators bridge the comment and its declaration; prose alone does not.
+    const betweenNodes = last.nextAll().filter(n => rangeOf(n).startUtf16 < rangeOf(next!).startUtf16);
+    const attributesOnly =
+      betweenNodes.some(n => wrappers.includes(kind(n))) &&
+      betweenNodes.every(n => wrappers.includes(kind(n)) || adapter.comments.has(kind(n)));
+    if (adjacent || attributesOnly) return next;
+  }
 }
 function ownerFor(comment: Comment, source: Source): { owner?: SgNode; attachment: Structure['attachment'] } {
   const adapter = rules[source.language];
@@ -125,8 +156,7 @@ function ownerFor(comment: Comment, source: Source): { owner?: SgNode; attachmen
       owner: comment.forcedOwner,
       attachment: { kind: 'syntactic', evidence: 'First string expression in a Python module, class or function body' },
     };
-  const first = comment.nodes[0]!,
-    last = comment.nodes.at(-1)!;
+  const first = comment.nodes[0]!;
   // Some grammars include a trailing comment inside the just-closed body.
   const closing = first.prev();
   if (
@@ -169,35 +199,67 @@ function ownerFor(comment: Comment, source: Source): { owner?: SgNode; attachmen
       },
     };
   }
-  let next = last.next();
-  const wrappers =
-    source.language === 'typescript' || source.language === 'tsx'
-      ? ['decorator']
-      : source.language === 'rust'
-        ? ['attribute_item', 'inner_attribute_item']
-        : [];
-  while (next && (adapter.comments.has(kind(next)) || wrappers.includes(kind(next)))) next = next.next();
-  if (
-    next?.isNamed() &&
-    !['ERROR', 'else_clause', 'elif_clause', 'catch_clause', 'finally_clause'].includes(kind(next))
-  ) {
-    const between = source.content.slice(rangeOf(last).endUtf16, rangeOf(next).startUtf16);
-    const adjacent = /^\s*$/.test(between) && (between.match(/\n/g)?.length ?? 0) <= 1;
-    // Attributes/decorators bridge the comment and its declaration; prose alone does not.
-    const betweenNodes = last.nextAll().filter(n => rangeOf(n).startUtf16 < rangeOf(next!).startUtf16);
-    const attributesOnly =
-      betweenNodes.some(n => wrappers.includes(kind(n))) &&
-      betweenNodes.every(n => wrappers.includes(kind(n)) || adapter.comments.has(kind(n)));
-    if (adjacent || attributesOnly)
-      return {
-        owner: next,
-        attachment: {
-          kind: 'adjacency_based',
-          evidence: 'Immediately leading comment at the same syntax nesting level',
-        },
-      };
-  }
+  const next = leadingOwner(comment, source);
+  if (next)
+    return {
+      owner: next,
+      attachment: {
+        kind: 'adjacency_based',
+        evidence: 'Immediately leading comment at the same syntax nesting level',
+      },
+    };
   return { attachment: { kind: 'unresolved', evidence: 'No unambiguous local syntax or adjacency association' } };
+}
+function ownerContext(source: Source, owner: SgNode): { wrapped: SgNode; range: Range } {
+  // Small enclosing callables provide the local data/control flow around
+  // implementation comments and allow their context to be shared. If that
+  // evidence exceeds the budget, do not quietly certify a lone statement.
+  const adapter = rules[source.language];
+  const callable = adapter.callables.has(kind(owner))
+    ? owner
+    : ancestors(owner).find(n => adapter.callables.has(kind(n)));
+  let wrapped = callable ?? owner;
+  while (wrapped.parent() && rules[source.language].wrappers.has(kind(wrapped.parent()!))) wrapped = wrapped.parent()!;
+  let range = rangeOf(wrapped);
+  // Rust attributes and TypeScript method decorators are sibling nodes.
+  const siblingWrappers =
+    source.language === 'rust'
+      ? new Set(['attribute_item'])
+      : source.language === 'typescript' || source.language === 'tsx'
+        ? new Set(['decorator'])
+        : new Set<string>();
+  let previous = wrapped.prev();
+  while (previous) {
+    if (siblingWrappers.has(kind(previous)))
+      range = rangeFor(source.content, rangeOf(previous).startUtf16, range.endUtf16);
+    else if (!(source.language === 'rust' && adapter.comments.has(kind(previous)))) break;
+    previous = previous.prev();
+  }
+  return { wrapped, range };
+}
+function declarationName(owner: SgNode | undefined, language: Language): string | null {
+  const namingOwner =
+    owner &&
+    (owner.field('name')
+      ? owner
+      : ancestors(owner).find(
+          n => rules[language].callables.has(kind(n)) || rules[language].declarations.has(kind(n)),
+        ));
+  let declaration = owner;
+  while (declaration && rules[language].wrappers.has(kind(declaration)))
+    declaration = declaration.namedChildren().find(n => !['decorator', 'comment'].includes(kind(n)));
+  return (
+    namingOwner?.field('name')?.text() ??
+    declaration?.field('name')?.text() ??
+    (declaration && ['lexical_declaration', 'variable_declaration'].includes(kind(declaration))
+      ? declaration
+          .namedChildren()
+          .find(n => kind(n) === 'variable_declarator')
+          ?.field('name')
+          ?.text()
+      : undefined) ??
+    null
+  );
 }
 export async function extractComments(
   sourceId: string,
@@ -229,31 +291,7 @@ export async function extractComments(
     };
     let status: Unit['context']['status'] = 'complete_local';
     if (owner && ownerRange) {
-      // Small enclosing callables provide the local data/control flow around
-      // implementation comments and allow their context to be shared. If that
-      // evidence exceeds the budget, do not quietly certify a lone statement.
-      const adapter = rules[source.language];
-      const callable = adapter.callables.has(kind(owner))
-        ? owner
-        : ancestors(owner).find(n => adapter.callables.has(kind(n)));
-      let wrapped = callable ?? owner;
-      while (wrapped.parent() && rules[source.language].wrappers.has(kind(wrapped.parent()!)))
-        wrapped = wrapped.parent()!;
-      let range = rangeOf(wrapped);
-      // Rust attributes and TypeScript method decorators are sibling nodes.
-      const siblingWrappers =
-        source.language === 'rust'
-          ? new Set(['attribute_item'])
-          : source.language === 'typescript' || source.language === 'tsx'
-            ? new Set(['decorator'])
-            : new Set<string>();
-      let previous = wrapped.prev();
-      while (previous) {
-        if (siblingWrappers.has(kind(previous)))
-          range = rangeFor(source.content, rangeOf(previous).startUtf16, range.endUtf16);
-        else if (!(source.language === 'rust' && adapter.comments.has(kind(previous)))) break;
-        previous = previous.prev();
-      }
+      const { wrapped, range } = ownerContext(source, owner);
       if (range.endUtf16 - range.startUtf16 <= config.maxContextChars) add(range, 'owner');
       else {
         status = 'partial';
@@ -294,27 +332,7 @@ export async function extractComments(
       else omissions.push('oversized_surroundings');
     }
     if (!refs.length) status = 'unavailable';
-    const namingOwner =
-      owner &&
-      (owner.field('name')
-        ? owner
-        : ancestors(owner).find(
-            n => rules[source.language].callables.has(kind(n)) || rules[source.language].declarations.has(kind(n)),
-          ));
-    let declaration = owner;
-    while (declaration && rules[source.language].wrappers.has(kind(declaration)))
-      declaration = declaration.namedChildren().find(n => !['decorator', 'comment'].includes(kind(n)));
-    const name =
-      namingOwner?.field('name')?.text() ??
-      declaration?.field('name')?.text() ??
-      (declaration && ['lexical_declaration', 'variable_declaration'].includes(kind(declaration))
-        ? declaration
-            .namedChildren()
-            .find(n => kind(n) === 'variable_declarator')
-            ?.field('name')
-            ?.text()
-        : undefined) ??
-      null;
+    const name = declarationName(owner, source.language);
     const structure: Structure = {
       syntax: comment.syntax,
       documentationStyle: comment.style,
