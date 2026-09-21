@@ -11,7 +11,7 @@ files unchanged.
 [Pi](https://github.com/badlogic/pi-mono) is the coding-agent host;
 [Jev](https://docs.typesafe.ai/) supplies the semantic and qualitative evaluations.
 
-![Clockwise workflow: capture source, prepare comments and context, ask Jev, validate answers, retain a frozen bundle, then let Pi interpret the results.](docs/images/how-it-works.svg)
+![jevvy architecture: source comments flow through local preparation, Jev inference and answer validation into a frozen evidence bundle for Pi.](docs/images/how-it-works.svg)
 
 [Quick start](#quick-start) · [What it evaluates](#what-it-evaluates) ·
 [Results](#read-the-results) · [Verification](docs/verification.md)
