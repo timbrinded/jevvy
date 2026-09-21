@@ -15,9 +15,28 @@ an advantage over direct Pi review remain unproven.
 
 ## Platform and host
 
-Pi 0.86.1 and TypeBox 1.3.27 are pinned. Production installs use the packed
+Development checks pin Pi 0.86.1 and TypeBox 1.3.27. The extension declares these
+host APIs as wildcard peers, following Pi's package contract. Production installs use the packed
 archive in an empty temporary npm project with `--omit=dev`, then exercise the
 registered Pi tools, command, frozen context retrieval and session reload.
+
+The manifest now points to `src/extension.ts`, which is included in the package.
+Git installs do not require an ignored `dist/` directory or a compiler. `prepack`
+builds the existing library exports for archives. `pi-check.mjs` discovers the
+extension from configured packages and asserts that the loaded paths match the
+manifest; it no longer injects a built extension file into the loader.
+
+`clean-install.mjs` installs Pi and Jevvy in separate temporary directories, leaves
+the extension's host peers to Pi, then uses the actual `pi install` and `pi remove`
+commands with isolated settings. Its `--source` mode checks a source-only package
+with production dependencies and no `dist/` or TypeScript compiler. Both modes
+exercise the same five-language scan, retrieval, slash command and reload checks.
+
+Manifest refactor checks on 21 September 2026 passed on macOS ARM64: all 80 tests,
+typecheck and build; checkout manifest discovery; packed and source-only clean
+installs; registered commands/tools, all five parsers, result pagination and reload;
+and removal from Pi's isolated package settings. The source-only install contained
+no compiler or built output. These packaging checks were not repeated on Linux.
 
 | Environment | Node | Full suite, typecheck and build | Clean production install and Pi tools |
 | --- | --- | --- | --- |

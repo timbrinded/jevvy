@@ -13,7 +13,7 @@ const results = [];
 for (const mode of ['baseline', 'assisted']) {
   const start = Date.now();
   const args = [...common, '--tools', mode === 'baseline' ? 'read' : 'read,jevvy_comments,jevvy_results'];
-  if (mode === 'assisted') args.push('-e', './dist/extension.js');
+  if (mode === 'assisted') args.push('-e', '.');
   args.push(task + (mode === 'baseline' ? ' Read the source directly.' : selective ? ' Invoke jevvy_comments for this file with mode=files and dryRun=false. Then choose which measurements and source evidence to retrieve; use selective retrieval when useful. You remain responsible for the final interpretation.' : ' Invoke jevvy_comments for this file with mode=files and dryRun=false. Retrieve every remaining comment page using jevvy_results and inspect source/context where needed before interpreting the labels.'));
   const child = spawn(process.execPath, args, { cwd: process.cwd(), env: { ...process.env, PI_CODING_AGENT_DIR: join(out, 'pi-agent'), PI_TELEMETRY: '0', PI_OFFLINE: '1', JEVVY_STORAGE_DIR: join(out, 'jevvy') }, stdio: ['ignore', 'pipe', 'pipe'] });
   let stdout = '', stderr = '';

@@ -1,6 +1,6 @@
 # jevvy
 
-jevvy is a [Pi](https://github.com/badlogic/pi-mono) extension for improving the
+jevvy is a [Pi](https://github.com/earendil-works/pi) extension for improving the
 quality of generated code. It uses [Jev](https://docs.typesafe.ai/) to answer
 defined questions about source code and gives Pi the results alongside the
 source used to assess it. Pi uses that evidence to decide what to improve;
@@ -27,43 +27,40 @@ comments pack.
 
 ## Install
 
-Requires Node ≥22.19 and Git on macOS or Linux, ARM64 or x64. The checkout
-installs Pi 0.86.1 and the matching TypeBox version. See the
+Requires Pi, Node ≥22.19 and Git on macOS or Linux, ARM64 or x64.
+Development checks use Pi 0.86.1; see the
 [tested environments](docs/verification.md#platform-and-host) for platform coverage.
 
 ```sh
-git clone https://github.com/timbrinded/jevvy.git
-cd jevvy
-npm ci
-npm run build
-npm exec -- pi -e ./dist/extension.js
+pi install git:github.com/timbrinded/jevvy
+cd /path/to/your/project
+pi
 ```
 
-In Pi, try the included fixture:
+Pi installs Jevvy's dependencies and loads the extension automatically when it
+starts. Restart an existing Pi session after installing. For a project-only
+installation, add `-l` to the install command and run it from that project.
+
+In Pi, preview the comments affected by your working changes:
 
 ```text
-/jevvy comments --files fixtures/comments.ts --dry-run
+/jevvy comments --working --dry-run
 ```
 
 A dry-run lists selected comments without making inference calls or requiring an
-API key. Use `/jevvy results <bundle-id> --view units` for the exact planned
-requests, and `--view context` for their source code.
+API key. A clean working tree has no changes to review; use `--files` to select
+files explicitly, as shown below.
 
 For live analysis, set `TYPESAFE_API_KEY` in your shell before launching Pi,
 then run the same command without `--dry-run`. Requests use your TypeSafe
 account; the key is never saved in a bundle or configuration file.
 
-To use the extension in another project, run its Pi binary from that directory:
-
-```sh
-cd /path/to/your/project
-/path/to/jevvy/node_modules/.bin/pi -e /path/to/jevvy/dist/extension.js
-```
-
-Replace these paths with your local directories. File paths are relative to
-Pi's working directory; Git scans use its repository.
+Use `pi list` to see installed packages and `pi remove git:github.com/timbrinded/jevvy`
+to remove the Git install. For checkout-based installation, see [Development](#development).
 
 ## Scan comments
+
+File paths are relative to Pi's working directory; Git scans use its repository.
 
 | Scope | Command | What is scanned |
 | --- | --- | --- |
@@ -108,6 +105,8 @@ code; it is a valid answer, not a failed request.
 
 ## Results
 
+### Inspect a scan
+
 During a scan, a panel above the editor shows the current stage, packet progress,
 and elapsed time. You can keep typing or use `/jevvy cancel`. The result card
 shows coverage and errors; Pi's expand-tool-output action opens the report page
@@ -119,31 +118,43 @@ comment's frozen source, and question definitions. The inspector makes no API
 requests. Escape closes it, or use your configured Pi cancel key.
 
 A scan returns comment excerpts, source locations, label values, consistency
-probabilities and coverage counts. Supporting code and full comments are saved
-in the bundle and available through retrieval:
+probabilities and coverage counts. It also gives you the bundle ID used by the
+inspector and retrieval commands.
+
+### Retrieve evidence
+
+The default results view explains the questions and score criteria. `units`
+shows full comments and answer distributions; `context` shows the saved code.
+After a dry-run, `units` also includes the exact planned requests.
 
 ```text
 /jevvy results <bundle-id>
 /jevvy results <bundle-id> --view units --limit 5
 /jevvy results <bundle-id> --view units --limit 5 --cursor <cursor>
 /jevvy results <bundle-id> --view context --ids <context-id>
-/jevvy results <bundle-id> --view units --labels reader_value --sort reader_value --direction asc
-/jevvy results <bundle-id> --view units --labels local_consistency --sort local_consistency --outcome contradicted --include-context --include-definitions
 ```
 
-The default results view explains the questions and score criteria. `units`
-shows comments with full answer distributions; `context` shows the saved code.
 Each page reports its selection, order, count, total and next cursor. Keep the
-same query options, including page size, when following a cursor. Comments appear
-in source order unless you choose a sort. Use `--direction asc` or `desc`;
-missing measurements remain last. For Choice labels, `--outcome contradicted`
-sorts that outcome's probability. Without an outcome, Choice sorting uses the
-winning option's probability and labels that ordering explicitly.
+same query options, including page size, when following a cursor. Omit the cursor
+when starting a different query.
 
 Use `--labels` to retrieve only the measurements you need. `--include-context`
 adds the comments' saved source, with shared excerpts shown once per page;
 `--include-definitions` adds the selected rubrics. Coverage and unsuccessful
-label statuses remain visible. These options also exist as `labels`, `direction`,
+label statuses remain visible.
+
+```text
+/jevvy results <bundle-id> --view units --labels reader_value --sort reader_value --direction asc
+/jevvy results <bundle-id> --view units --labels local_consistency --sort local_consistency --outcome contradicted --include-context --include-definitions
+```
+
+Comments appear in source order unless you choose a sort. Sorts default to
+descending order; use `--direction asc` for ascending order. Missing measurements
+remain last in either direction. For Choice labels, `--outcome contradicted`
+sorts that outcome's probability. Without an outcome, Choice sorting uses the
+winning option's probability and labels that ordering explicitly.
+
+These options also exist as `labels`, `direction`,
 `outcome`, `includeContext` and `includeDefinitions` on `jevvy_results`.
 
 Pi can invoke the same scans and retrieval through `jevvy_comments` and
@@ -151,6 +162,8 @@ Pi can invoke the same scans and retrieval through `jevvy_comments` and
 contains the report Pi reads; tool metadata contains the saved bundle reference.
 Pi supplies the interpretation. The report itself contains no generated
 explanations or combined review score.
+
+### Saved results and failures
 
 Each scan saves a new, immutable JSON bundle, including scans that reuse cached
 answers. It contains the original source, shared code excerpts, questions,
@@ -160,8 +173,7 @@ and [bundle](examples/jevvy-results.example.json), which use synthetic values.
 
 Failed, missing and cancelled answers have explicit statuses rather than numeric
 scores. Command scans run in the background so `/jevvy cancel` can stop them.
-It keeps completed answers; those
-answers also survive failures in other requests. If a parser error, ambiguous
+Cancellation keeps completed answers, as do failures in other requests. If a parser error, ambiguous
 attachment or size limit leaves context incomplete, questions requiring complete
 code context are skipped. Questions about wording can still run. The questions
 and report mark source text as untrusted input, including instructions embedded
@@ -199,10 +211,28 @@ Set `JEVVY_CONFIG` to a JSON object to override these defaults:
 
 Cached answers are validated before reuse and must match the exact request,
 pinned model, question definitions and parser versions. Invalid responses are
-not cached as successes. Choosing `jev-latest` or `jev-preview` disables cache reuse because the
-model behind an alias can change. Each result records the resolved version.
+not cached as successes. Choosing `jev-latest` or `jev-preview` disables cache
+reuse because the model behind an alias can change. Each result records the
+resolved version.
 
 ## Development
+
+To work from a local checkout:
+
+```sh
+git clone https://github.com/timbrinded/jevvy.git
+cd jevvy
+npm ci
+npm exec -- pi install .
+```
+
+This registers the checkout as a local Pi package. Run `pi` in any project, or use
+`/path/to/jevvy/node_modules/.bin/pi` if Pi is not on your PATH. To remove this
+installation, pass the checkout path to `pi remove`.
+
+The `pi` manifest in `package.json` points to the TypeScript entry, which Pi loads
+directly. Restart Pi after editing it. `npm run build` produces the JavaScript
+library exports; `npm pack` builds them automatically.
 
 ```sh
 npm run check                          # Typecheck, tests and build
@@ -210,10 +240,15 @@ node scripts/pi-check.mjs              # Pi commands, tools and reload
 node scripts/pi-check.mjs --live        # Live Jev calls through Pi
 node --import tsx scripts/live-check.ts # Direct live SDK check
 node --import tsx scripts/evaluate-handoff.ts # Controlled live request/rubric comparison
+npm pack --pack-destination .artifacts  # Build and package for installation checks
+node scripts/clean-install.mjs          # Packed install through Pi's manifest
+node scripts/clean-install.mjs --source # Source-only install, no build or dev dependencies
 ```
 
-Ordinary tests use fixture responses and make no paid API calls. Live checks use
-`TYPESAFE_API_KEY` and write their records to ignored `.artifacts/`.
+Ordinary tests use fixture responses and make no paid API calls. Live checks
+require `TYPESAFE_API_KEY`. The direct SDK and controlled comparison scripts
+retain their records under ignored `.artifacts/`; the Pi smoke check prints its
+summary and removes its temporary bundles.
 
 The [verification record](docs/verification.md) covers automated tests, platform
 checks and live inference. The [UI verification](docs/ui-verification.md) records

@@ -8,13 +8,17 @@ process.env.PI_OFFLINE = '1';
 process.env.PI_TELEMETRY = '0';
 const temporary = await mkdtemp(join(tmpdir(), 'jevvy-pi-'));
 process.env.JEVVY_STORAGE_DIR = join(temporary, 'results');
-const cwd = process.cwd(), agentDir = join(temporary, 'agent');
-const settingsManager = SettingsManager.inMemory();
-const loader = new DefaultResourceLoader({ cwd, agentDir, settingsManager, additionalExtensionPaths: [resolve(process.env.JEVVY_EXTENSION ?? 'dist/extension.js')], noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true });
+const cwd = process.cwd(), agentDir = process.env.JEVVY_CHECK_AGENT_DIR ?? join(temporary, 'agent');
+const packageRoot = resolve(process.env.JEVVY_PACKAGE ?? '.');
+const manifest = JSON.parse(await readFile(join(packageRoot, 'package.json'), 'utf8'));
+const settingsManager = process.env.JEVVY_CHECK_AGENT_DIR ? SettingsManager.create(cwd, agentDir) : SettingsManager.inMemory({ packages: [packageRoot] });
+assert.ok(settingsManager.getPackages().some(source => typeof source === 'string' && resolve(agentDir, source) === packageRoot), 'Package must be registered in Pi settings');
+const loader = new DefaultResourceLoader({ cwd, agentDir, settingsManager, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true });
 let session;
 try {
   await loader.reload();
   assert.deepEqual(loader.getExtensions().errors, []);
+  assert.deepEqual(loader.getExtensions().extensions.map(e => resolve(e.path)), manifest.pi.extensions.map(path => resolve(packageRoot, path)), 'Pi must discover exactly the manifest extensions');
   ({ session } = await createAgentSession({ cwd, agentDir, settingsManager, resourceLoader: loader, sessionManager: SessionManager.inMemory(cwd), tools: ['jevvy_comments', 'jevvy_results'] }));
   const getTool = name => { const t = session.agent.state.tools.find(t => t.name === name); assert.ok(t, `Missing ${name}`); return t; };
   const updates = [];
@@ -65,5 +69,5 @@ try {
   assert.equal(reloadedBundle.run.status, 'completed');
   assert.ok(reloadedBundle.units.length > 0);
   assert.equal(reloadedBundle.coverage.files[0].status, 'parsed');
-  console.log(JSON.stringify({ pi: '0.86.1', platform: `${process.platform}-${process.arch}`, loaded: true, command: true, tools: true, modelVisibleContent: true, pagination: true, context: true, reload: true, live: process.argv.includes('--live'), coverage: bundle.coverage, bundleId: scan.details.bundleId }));
+  console.log(JSON.stringify({ pi: '0.86.1', platform: `${process.platform}-${process.arch}`, manifestDiscovery: true, loaded: true, command: true, tools: true, modelVisibleContent: true, pagination: true, context: true, reload: true, live: process.argv.includes('--live'), coverage: bundle.coverage, bundleId: scan.details.bundleId }));
 } finally { session?.dispose(); await rm(temporary, { recursive: true, force: true }); }
