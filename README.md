@@ -27,7 +27,7 @@ comments pack.
 
 ## Install
 
-Requires Pi, Node ≥22.19 and Git on macOS or Linux, ARM64 or x64.
+Requires Pi, Node 26 and Git on macOS or Linux, ARM64 or x64.
 Development checks use Pi 0.86.1; see the
 [tested environments](docs/verification.md#platform-and-host) for platform coverage.
 
@@ -217,13 +217,17 @@ resolved version.
 
 ## Development
 
+Use Node 26.9.0 (see `.node-version`) and pnpm 11.26.0. TypeScript 7 checks
+types and builds the published JavaScript. Node runs TypeScript tests and scripts
+directly. Source imports use `.ts`; the build rewrites them to `.js`.
+
 To work from a local checkout:
 
 ```sh
 git clone https://github.com/timbrinded/jevvy.git
 cd jevvy
-npm ci
-npm exec -- pi install .
+pnpm install --frozen-lockfile
+pnpm exec pi install .
 ```
 
 This registers the checkout as a local Pi package. Run `pi` in any project, or use
@@ -231,16 +235,16 @@ This registers the checkout as a local Pi package. Run `pi` in any project, or u
 installation, pass the checkout path to `pi remove`.
 
 The `pi` manifest in `package.json` points to the TypeScript entry, which Pi loads
-directly. Restart Pi after editing it. `npm run build` produces the JavaScript
-library exports; `npm pack` builds them automatically.
+directly. Restart Pi after editing it. `pnpm run build` produces the JavaScript
+library exports; `pnpm pack` builds them automatically.
 
 ```sh
-npm run check                          # Typecheck, tests and build
-node scripts/pi-check.mjs              # Pi commands, tools and reload
-node scripts/pi-check.mjs --live        # Live Jev calls through Pi
-node --import tsx scripts/live-check.ts # Direct live SDK check
-node --import tsx scripts/evaluate-handoff.ts # Controlled live request/rubric comparison
-npm pack --pack-destination .artifacts  # Build and package for installation checks
+pnpm run check                          # Format, lint, typecheck, tests and build
+pnpm run smoke                        # Pi commands, tools and reload
+pnpm run smoke:live                   # Live Jev calls through Pi
+node scripts/live-check.ts # Direct live SDK check
+node scripts/evaluate-handoff.ts # Controlled live request/rubric comparison
+pnpm pack --pack-destination .artifacts  # Build and package for installation checks
 node scripts/clean-install.mjs          # Packed install through Pi's manifest
 node scripts/clean-install.mjs --source # Source-only install, no build or dev dependencies
 ```
@@ -249,6 +253,11 @@ Ordinary tests use fixture responses and make no paid API calls. Live checks
 require `TYPESAFE_API_KEY`. The direct SDK and controlled comparison scripts
 retain their records under ignored `.artifacts/`; the Pi smoke check prints its
 summary and removes its temporary bundles.
+
+`examples/comment-test.ts` is the curated 128-comment cross-section for the
+comments pack. `test/comment-bed.test.ts` verifies its dry-run shape, and the
+smoke test scans it through the extension. CI runs format, lint, typecheck,
+build, unit tests and smoke as parallel jobs (`.github/workflows/`).
 
 The [verification record](docs/verification.md) covers automated tests, platform
 checks and live inference. The [UI verification](docs/ui-verification.md) records

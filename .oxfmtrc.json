@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  // Matches the established repo style (single quotes, bare single-arg
+  // arrows) at a 120-column width so the one-time adoption diff stays
+  // mechanical. Markdown stays with authors (proseWrap preserve), and
+  // parser inputs plus machine-generated goldens are excluded because they
+  // must stay byte-stable (see .oxlintrc.json for the same list).
+  "singleQuote": true,
+  "trailingComma": "all",
+  "printWidth": 120,
+  "arrowParens": "avoid",
+  "semi": true,
+  "tabWidth": 2,
+  "useTabs": false,
+  "proseWrap": "preserve",
+  "ignorePatterns": [
+    "dist/**",
+    "node_modules/**",
+    ".artifacts/**",
+    ".research/**",
+    "docs/**",
+    "**/*.md",
+    "fixtures/**",
+    "test/fixtures/**",
+    "schemas/**",
+    "examples/jevvy-results.example.*"
+  ]
+}

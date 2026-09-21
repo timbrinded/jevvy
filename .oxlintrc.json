@@ -1,0 +1,70 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // Strictness policy (JSONC comments are supported here):
+  // - "error" rules are CI-blocking. Each one is at zero violations today, so
+  //   any new violation fails the lint job. Do not add file allows; fix code.
+  // - "warn" rules are ratchet targets. They flag legacy hotspots that are
+  //   still acceptable but must not grow. Fix the code, then escalate to
+  //   "error" in a follow-up — never silence with an inline disable.
+  // - Style-only concerns (quotes, width, commas) belong to oxfmt, not here.
+  "plugins": ["typescript", "unicorn", "oxc", "import", "node", "promise"],
+  "rules": {
+    // No loose equality: accidental coercion hides bugs in scoring code.
+    "eqeqeq": "error",
+    // No dependency cycles between modules.
+    "import/no-cycle": "error",
+    // Explicit unknown + narrowing instead of any; tsconfig strict already
+    // guards the rest (noUncheckedIndexedAccess, noUnusedLocals).
+    "typescript/no-explicit-any": "error",
+    // Libraries stay quiet; only CLI entry points may write to stdout (see
+    // the scripts override below).
+    "no-console": "error",
+    // Nesting depth stays reviewable. Ratchet target is 4; two legacy sites
+    // in src/packs/comments/context.ts and src/plan.ts sit at 5.
+    "max-depth": ["error", 5],
+    // Cyclomatic complexity target is 10. Legacy hotspots (validateBundle,
+    // render, scan, extractComments, captureScope) exceed it and are tracked
+    // as warnings until they are split into smaller functions.
+    "complexity": ["warn", 10],
+    // Functions take at most 4 parameters; wider signatures must become an
+    // options object. Legacy warnings: ResultInspector (8), progressLines (6).
+    "max-params": ["warn", 4],
+    // Functions stay short enough to review in one screen.
+    "max-lines-per-function": ["warn", 80]
+  },
+  "overrides": [
+    {
+      "files": ["scripts/**/*.mjs", "scripts/**/*.ts"],
+      // CLI scripts report through stdout; that is their interface.
+      "rules": { "no-console": "off" }
+    },
+    {
+      "files": ["src/ui.ts", "scripts/ui-lab/panel.js"],
+      // Control-character classes are intentional: ANSI-escape stripping.
+      "rules": { "no-control-regex": "off" }
+    },
+    {
+      "files": ["src/engine.ts"],
+      // Intentional preallocation: new Array(capture.files.length).
+      "rules": { "unicorn/no-new-array": "off" }
+    },
+    {
+      "files": ["examples/comment-test.ts"],
+      // Comment test bed: every smell in this file (console.log, vague
+      // prose, narration) is an intentional fixture for the comments pack
+      // to assess, not production code.
+      "rules": { "no-console": "off" }
+    }
+  ],
+  // Parser inputs and machine-generated goldens must stay byte-stable:
+  // fixtures feed the parsers under test, and the example/fixture JSON files
+  // are asserted byte-for-byte, so neither lint nor format may touch them.
+  "ignorePatterns": [
+    "dist/**",
+    ".artifacts/**",
+    "fixtures/**",
+    "test/fixtures/**",
+    "schemas/**",
+    "examples/jevvy-results.example.*"
+  ]
+}

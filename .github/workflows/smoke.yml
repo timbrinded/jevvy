@@ -1,0 +1,27 @@
+name: Smoke
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  extension:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      # Dry-run only: no TYPESAFE_API_KEY needed. Exercises extension
+      # loading, both tools, the slash command, session reload and the
+      # 128-unit examples/comment-test.ts bed end to end.
+      - run: pnpm run smoke

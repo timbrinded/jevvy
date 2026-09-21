@@ -79,7 +79,7 @@ Two prototype issues were found during use: the first narrow layout dropped its 
 Build Jevvy, then load only the opt-in experiment:
 
 ```sh
-npm run build
+pnpm run build
 node node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js --no-extensions -e ./scripts/ui-lab/extension.js
 ```
 
@@ -88,7 +88,9 @@ Inside Pi, use `/ui-lab live`, `/ui-lab partial`, `/ui-lab error`, `/ui-lab stal
 For the focused Node tests, install the matching TUI package locally to the experiment; Pi normally supplies it while loading extensions:
 
 ```sh
-npm install --prefix .artifacts/ui-research/runtime --ignore-scripts @earendil-works/pi-tui@0.86.1
+mkdir -p .artifacts/ui-research/runtime
+printf '{"private":true}\n' > .artifacts/ui-research/runtime/package.json
+pnpm --dir .artifacts/ui-research/runtime add --ignore-scripts @earendil-works/pi-tui@0.86.1
 ln -s ../../.artifacts/ui-research/runtime/node_modules scripts/ui-lab/node_modules
 node --test scripts/ui-lab/panel.test.js
 unlink scripts/ui-lab/node_modules

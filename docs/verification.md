@@ -1,8 +1,18 @@
 # Verification evidence
 
-The latest [handoff verification](handoff-verification.md) records 80 passing tests
+The [handoff verification](handoff-verification.md) records 80 passing tests
 on macOS and Linux ARM64, live inference, selective retrieval, old-bundle compatibility
 and an expanded Pi review comparison. The initial results below remain historical evidence.
+
+The toolchain migration on 21 September 2026 passed on native Linux x64 with
+Node 26.9.0, pnpm 11.26.0, TypeScript 7.0.2 and `@types/node` 26.6.2. A fresh
+frozen-lockfile install, formatting, typecheck, all 83 main tests, build, six UI
+lab tests, Pi dry-run smoke and clean production installs of both packed and
+source-only extensions passed, including manifest discovery and package removal. Lint reported no errors and 40 existing warnings. Tests run directly with
+Node; the checkout no longer depends on `tsx`. Logs are retained locally in
+`.artifacts/toolchain-check.log`, `.artifacts/toolchain-smoke.log` and
+`.artifacts/toolchain-clean-install.log`. The Node 26 migration was not rerun on
+macOS, ARM64 or in the Docker image.
 
 Initial checks on 21 September 2026 covered the implementation of milestones
 1–7 against the revision 3 product sheet, within the bounds below. Subsequent
@@ -17,7 +27,7 @@ an advantage over direct Pi review remain unproven.
 
 Development checks pin Pi 0.86.1 and TypeBox 1.3.27. The extension declares these
 host APIs as wildcard peers, following Pi's package contract. Production installs use the packed
-archive in an empty temporary npm project with `--omit=dev`, then exercise the
+archive in an empty temporary pnpm project with `--prod`, then exercise the
 registered Pi tools, command, frozen context retrieval and session reload.
 
 The manifest now points to `src/extension.ts`, which is included in the package.
@@ -36,7 +46,7 @@ Manifest refactor checks on 21 September 2026 passed on macOS ARM64: all 80 test
 typecheck and build; checkout manifest discovery; packed and source-only clean
 installs; registered commands/tools, all five parsers, result pagination and reload;
 and removal from Pi's isolated package settings. The source-only install contained
-no compiler or built output. These packaging checks were not repeated on Linux.
+no compiler or built output. These packaging checks were later repeated on Linux x64 with Node 26, as recorded above.
 
 | Environment | Node | Full suite, typecheck and build | Clean production install and Pi tools |
 | --- | --- | --- | --- |
@@ -52,7 +62,8 @@ review also invokes the registered tools through Pi. These initial checks did no
 assess the interactive terminal; the subsequent exploratory assessment records
 real PTY interaction and its findings. Linux results cover glibc; musl and other Linux
 distributions were not tested. x64 checks use emulation, not physical Intel hosts.
-Node 22.19 is the dependency minimum, not an additional tested runtime.
+These results predate the Node 26 toolchain. The current checkout requires Node 26;
+the older runtime versions above record the original test environments.
 
 ## Requirements checked
 
@@ -95,12 +106,12 @@ and model context. See `evaluation.md` for the actual measurements and limits.
 From the checkout:
 
 ```sh
-npm ci
-npm run check
+pnpm install --frozen-lockfile
+pnpm run check
 node scripts/pi-check.mjs
 node scripts/pi-check.mjs --live
-node --import tsx scripts/live-check.ts
-npm pack --pack-destination .artifacts
+node scripts/live-check.ts
+pnpm pack --pack-destination .artifacts
 node scripts/clean-install.mjs
 ```
 

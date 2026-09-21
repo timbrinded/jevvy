@@ -135,11 +135,11 @@ labelled. This does not establish improved review accuracy, calibration or lower
 ## Reproduction and local evidence
 
 ```sh
-npm run check
+pnpm run check
 node scripts/pi-check.mjs --live
-node --import tsx scripts/evaluate-handoff.ts
+node scripts/evaluate-handoff.ts
 node scripts/compare-reviews.mjs --selective --expanded
-npm pack --pack-destination .artifacts
+pnpm pack --pack-destination .artifacts
 node scripts/clean-install.mjs .artifacts/jevvy-0.1.0.tgz
 ```
 

@@ -1,0 +1,15 @@
+allowBuilds:
+  '@ast-grep/lang-python': true
+  '@ast-grep/lang-rust': true
+  '@google/genai': false
+  esbuild: true
+  protobufjs: false
+
+engineStrict: true
+
+# These exact Oxc versions were already installed before the pnpm migration.
+minimumReleaseAgeExclude:
+  - oxfmt@0.69.0
+  - '@oxfmt/*'
+  - oxlint@1.84.0
+  - '@oxlint/*'
