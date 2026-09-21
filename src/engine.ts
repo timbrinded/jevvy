@@ -1,0 +1,148 @@
+import { randomUUID } from 'node:crypto';
+import type { Bundle, Config, Source, Unit } from './contracts.js';
+import { configuration } from './config.js';
+import { hash, identity } from './hash.js';
+import { extractionMetadata } from './ast.js';
+import { captureScope, affected, type CapturedFile } from './scope.js';
+import { extractComments, type Extracted } from './packs/comments/context.js';
+import { definitions, definitionHash, PACK_VERSION } from './packs/comments/questions.js';
+import { planRequests } from './plan.js';
+import { bounded } from './queue.js';
+import { validateBundle, validateInput, validateResponse } from './validate.js';
+import { saveBundle, updateCoverage } from './bundle.js';
+import { jevTransport, transportError, type Transport } from './jev.js';
+import { cached, storeCache } from './cache.js';
+
+export interface ScanOptions { cwd: string; config?: Partial<Config>; signal?: AbortSignal; transport?: Transport; persist?: boolean; onProgress?: (message: string) => void }
+export interface ScanResult { bundle: Bundle; path?: string }
+function sourceFor(file: CapturedFile, snapshot: Source['snapshot']): Source {
+  const content = (snapshot === 'before' ? file.before : file.content)!;
+  return { path: snapshot === 'before' ? file.oldPath : file.path, snapshot, contentHash: hash(content), encoding: 'utf-8', language: file.language, content };
+}
+function sourceId(source: Source): string { return identity('source', { path: source.path, snapshot: source.snapshot, contentHash: source.contentHash }); }
+function select(bundle: Bundle, file: CapturedFile, before: Extracted | undefined, current: Extracted | undefined, beforeId?: string): void {
+  if (beforeId && before) {
+    const unmatched = [...(current?.units ?? [])];
+    const matched = new Set<string>();
+    // Match named owners first so identical prose in two functions cannot
+    // consume the surviving function's evidence in source order. Only then
+    // allow unchanged prose to follow a moved/renamed owner.
+    for (const old of before.units) {
+      const index = unmatched.findIndex(u => u.text === old.text && u.structure.owner?.name === old.structure.owner?.name && u.structure.owner?.kind === old.structure.owner?.kind);
+      if (index >= 0) { unmatched.splice(index, 1); matched.add(old.id); }
+    }
+    for (const old of before.units) {
+      if (matched.has(old.id)) continue;
+      const index = unmatched.findIndex(u => u.text === old.text);
+      if (index >= 0) { unmatched.splice(index, 1); matched.add(old.id); }
+    }
+    for (const old of before.units) {
+      if (matched.has(old.id)) continue;
+      const sameOwner = (u: Unit) => u.structure.owner?.name === old.structure.owner?.name && u.structure.owner?.kind === old.structure.owner?.kind;
+      // An old comment replaced in a two-sided hunk is modification history,
+      // not an independent removed current comment.
+      const replacement = file.changes.some(c => c.oldCount > 0 && c.newCount > 0 && affected(old.range, [c], 'old') && unmatched.some(u => sameOwner(u) && affected(u.range, [c], 'new')));
+      if (!replacement) bundle.removed.push({ sourceId: beforeId, range: old.range, text: old.text, reason: 'removed_from_current_source' });
+    }
+  }
+  if (!current) return;
+  for (const item of current.excluded) if (bundle.run.scope.mode === 'files' || file.renamed || affected(item.range, file.changes, 'new')) bundle.excluded.push(item);
+  for (const unit of current.units) {
+    const direct = affected(unit.range, file.changes, 'new');
+    const ownerChanged = unit.structure.owner && affected(unit.structure.owner.range, file.changes, 'new');
+    const contextChanged = unit.context.refs.some(ref => affected(current.contexts[ref]!.range, file.changes, 'new'));
+    if (bundle.run.scope.mode !== 'files' && !direct && !ownerChanged && !contextChanged && !file.renamed) continue;
+    const unchangedText = before?.units.some(old => old.text === unit.text && old.structure.owner?.name === unit.structure.owner?.name);
+    unit.change = bundle.run.scope.mode === 'files' ? 'unchanged' : direct && !unchangedText ? (before?.units.some(old => affected(old.range, file.changes, 'old') && old.structure.owner?.name === unit.structure.owner?.name) ? 'modified' : 'added') : 'associated_code';
+    bundle.units.push(unit);
+    for (const ref of unit.context.refs) bundle.contexts[ref] = current.contexts[ref]!;
+  }
+}
+export async function scan(value: unknown, options: ScanOptions): Promise<ScanResult> {
+  const input = validateInput(value), config = configuration(options.config);
+  const startedAt = new Date().toISOString();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new Error('Run deadline exceeded')), config.runTimeoutMs);
+  timer.unref();
+  const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
+  try {
+    options.onProgress?.('Capturing source');
+    const capture = await captureScope(input, options.cwd, signal);
+    const bundle: Bundle = {
+      schemaVersion: '1.0.0', kind: 'jevvy.comments.bundle', bundleId: `bundle_${randomUUID()}`,
+      producer: { name: 'jevvy', version: '0.1.0' }, pack: { id: 'comments', version: PACK_VERSION, definitionHash }, extraction: extractionMetadata,
+      run: { mode: input.dryRun ? 'dry_run' : 'live', status: 'completed', scope: capture.scope, snapshotId: identity('snapshot', capture.files.map(f => ({ path: f.path, oldPath: f.oldPath, before: f.before === null ? null : hash(f.before), content: f.content === null ? null : hash(f.content) }))), requestedModel: config.model, resolvedModel: null, startedAt, finishedAt: startedAt },
+      definitions: structuredClone(definitions), sources: {}, contexts: {}, units: [], excluded: [], removed: [], executions: {},
+      coverage: { files: capture.outcomes, units: { selected: 0, excluded: 0, removed: 0 }, labels: { ok: 0, not_applicable: 0, not_evaluated: 0, error: 0, cancelled: 0 }, cachedPackets: 0 }, diagnostics: capture.diagnostics,
+    };
+    type Parsed = { file: CapturedFile; sources: Source[]; before?: Extracted; current?: Extracted; error?: string; cancelled?: boolean };
+    const parsed: Parsed[] = new Array(capture.files.length);
+    await bounded(capture.files, config.parseConcurrency, async (file, index) => {
+      const p: Parsed = { file, sources: [] }; parsed[index] = p;
+      if (signal.aborted) { p.cancelled = true; return; }
+      options.onProgress?.(`Extracting ${file.path}`);
+      try {
+        if (file.before !== null) { const s = sourceFor(file, 'before'); p.sources.push(s); p.before = await extractComments(sourceId(s), s, config); }
+        if (file.content !== null) { const s = sourceFor(file, 'captured'); p.sources.push(s); p.current = await extractComments(sourceId(s), s, config); }
+      } catch (e) { p.error = transportError(e); }
+    });
+    for (const p of parsed) {
+      if (p.cancelled || p.error) {
+        bundle.coverage.files.push({ path: p.file.path, status: p.cancelled ? 'cancelled' : 'parse_error', reason: p.error ?? 'Extraction cancelled' });
+        if (p.error) bundle.diagnostics.push(`${p.file.path}: ${p.error}`);
+        continue;
+      }
+      for (const s of p.sources) bundle.sources[sourceId(s)] = s;
+      const beforeId = p.sources.find(s => s.snapshot === 'before');
+      select(bundle, p.file, p.before, p.current, beforeId && sourceId(beforeId));
+      const errors = (p.before?.errors.length ?? 0) + (p.current?.errors.length ?? 0);
+      bundle.coverage.files.push({ path: p.file.path, status: p.file.content === null ? 'deleted' : errors ? 'parse_error' : 'parsed', reason: errors ? `${errors} parser recovery ranges` : '' });
+    }
+    bundle.units.sort((a, b) => bundle.sources[a.sourceId]!.path.localeCompare(bundle.sources[b.sourceId]!.path, 'en') || a.range.startUtf16 - b.range.startUtf16);
+    planRequests(bundle, config);
+    updateCoverage(bundle);
+    if (signal.aborted) bundle.run.status = 'cancelled';
+    else if (bundle.coverage.files.some(f => ['parse_error', 'unreadable'].includes(f.status))) bundle.run.status = bundle.units.length ? 'partial' : 'failed';
+    validateBundle(bundle);
+    const units = new Map(bundle.units.map(u => [u.id, u]));
+    if (!input.dryRun && Object.keys(bundle.executions).length) {
+      let transport: Transport | undefined = options.transport;
+      let finished = 0;
+      await bounded(Object.entries(bundle.executions), config.requestConcurrency, async ([packetId, e]) => {
+        const mark = (status: 'error' | 'cancelled', reason: string) => {
+          e.status = status; e.diagnostics.push(reason);
+          for (const binding of Object.values(e.bindings)) units.get(binding.unitId)!.labels[binding.labelId] = { status, reason };
+        };
+        if (signal.aborted) { mark('cancelled', 'Run cancelled before request'); return; }
+        try {
+          const hit = await cached(config, bundle, e);
+          if (!hit) transport ??= jevTransport(config);
+          e.origin = hit ? 'cache' : 'provider';
+          const raw = hit ? hit.response : await transport!(e.request, signal);
+          const result = validateResponse(raw, e);
+          if (!config.model.endsWith('-latest') && result.model !== config.model) throw new Error('Provider returned a different model than requested');
+          e.origin = hit ? 'cache' : 'provider'; e.cacheSource = hit?.bundleId ?? null;
+          e.model = result.model; e.usage = result.usage;
+          e.status = Object.keys(result.errors).length ? (Object.keys(result.answers).length ? 'partial' : 'error') : 'ok';
+          for (const [qid, binding] of Object.entries(e.bindings)) {
+            const unit = units.get(binding.unitId)!;
+            unit.labels[binding.labelId] = result.errors[qid] ? { status: 'error', reason: result.errors[qid]! } : { status: 'ok', packetId, answer: result.answers[qid]! };
+          }
+          if (!hit) try { await storeCache(config, bundle, e, result); } catch { e.diagnostics.push('Cache write failed; results retained'); }
+        } catch (error) { mark(signal.aborted ? 'cancelled' : 'error', signal.aborted ? 'Run cancelled during request' : transportError(error)); }
+        options.onProgress?.(`Processed ${++finished}/${Object.keys(bundle.executions).length} packets`);
+      });
+    }
+    const models = [...new Set(Object.values(bundle.executions).flatMap(e => e.model ? [e.model] : []))];
+    bundle.run.resolvedModel = models.length === 1 ? models[0]! : null;
+    if (models.length > 1) bundle.diagnostics.push('Multiple resolved models; per-execution models retained');
+    updateCoverage(bundle);
+    const failedFiles = bundle.coverage.files.some(f => ['parse_error', 'unreadable'].includes(f.status));
+    if (signal.aborted) bundle.run.status = 'cancelled';
+    else if (bundle.coverage.labels.error || failedFiles) bundle.run.status = bundle.coverage.labels.ok || bundle.units.length ? 'partial' : 'failed';
+    bundle.run.finishedAt = new Date().toISOString();
+    validateBundle(bundle);
+    const path = options.persist === false ? undefined : await saveBundle(bundle, config);
+    return { bundle, path };
+  } finally { clearTimeout(timer); }
+}
