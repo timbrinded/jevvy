@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1060" viewBox="0 0 1600 1060" fill="none" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="948" viewBox="0 0 1600 948" fill="none" role="img" aria-labelledby="title desc">
   <title id="title">jevvy — from comment intent to inspectable evidence</title>
   <desc id="desc">A six-step architecture diagram. Capture source from files or Git changes; prepare comments and local context with AST parsing; send fixed questions to Jev through the TypeSafe API; validate native answers; store a frozen results bundle; let Pi interpret the evidence. An illustrative comment promises undefined while its function throws. The example result identifies that contradiction without inventing probabilities. Dry-run prepares requests without inference; valid cached answers can be reused.</desc>
   <defs>
-    <linearGradient id="canvas" x1="0" y1="0" x2="1600" y2="1060" gradientUnits="userSpaceOnUse"><stop stop-color="#171d24"/><stop offset=".54" stop-color="#0e131a"/><stop offset="1" stop-color="#151b22"/></linearGradient>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1600" y2="948" gradientUnits="userSpaceOnUse"><stop stop-color="#171d24"/><stop offset=".54" stop-color="#0e131a"/><stop offset="1" stop-color="#151b22"/></linearGradient>
     <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#232b35"/><stop offset="1" stop-color="#19212a"/></linearGradient>
     <linearGradient id="core" x1="690" y1="534" x2="860" y2="710" gradientUnits="userSpaceOnUse"><stop stop-color="#ffe4b9"/><stop offset=".46" stop-color="#ffb86d"/><stop offset="1" stop-color="#e87845"/></linearGradient>
     <linearGradient id="wire" x1="490" y1="470" x2="1120" y2="800" gradientUnits="userSpaceOnUse"><stop stop-color="#799488"/><stop offset=".48" stop-color="#f5bc82"/><stop offset="1" stop-color="#a5dbc6"/></linearGradient>
@@ -12,10 +12,10 @@
     <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000" flood-opacity=".24"/></filter>
     <filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5"/></filter>
     <marker id="arrow" markerWidth="9" markerHeight="9" refX="6" refY="4" orient="auto"><path d="m1 1 5 3-5 3" stroke="#accbbc" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
-    <clipPath id="frame"><rect x="1" y="1" width="1598" height="1058" rx="28"/></clipPath>
+    <clipPath id="frame"><rect x="1" y="1" width="1598" height="946" rx="28"/></clipPath>
   </defs>
   <g clip-path="url(#frame)">
-    <rect width="1600" height="1060" fill="url(#canvas)"/>
+    <rect width="1600" height="948" fill="url(#canvas)"/>
     <rect y="316" width="1600" height="614" fill="url(#grid)"/>
     <ellipse cx="780" cy="606" rx="360" ry="350" fill="url(#aura)"/>
     <ellipse cx="1390" cy="620" rx="400" ry="440" fill="url(#wash)"/>
@@ -25,14 +25,9 @@
       <g transform="translate(68 62)" stroke="#c6e7d6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M0 7h12v18c0 10-6 15-14 15"/><path d="m21 8 11 11-11 11"/></g>
       <text x="117" y="99" font-size="42" font-weight="650" letter-spacing="-2" fill="#f0f3ee">jevvy</text>
       <path d="M262 68v30" stroke="#46515a"/>
-      <text x="287" y="90" font-size="18" letter-spacing="2.4" fill="#a9b5bf">COMMENT INTELLIGENCE FOR PI</text>
-      <rect x="1291" y="61" width="241" height="42" rx="21" fill="#1c2826" stroke="#384e43"/>
-      <circle cx="1313" cy="82" r="4" fill="#b1d9bb"/>
-      <text x="1330" y="89" font-size="17" font-weight="500" fill="#c0dac8">Source stays unchanged.</text>
-      <text x="68" y="192" font-size="66" font-weight="600" letter-spacing="-2.8" fill="#f1f2ed">Comments carry intent.</text>
-      <text x="68" y="266" font-size="66" font-weight="600" letter-spacing="-2.8" fill="#aecbbd">Make it inspectable.</text>
-      <text x="1070" y="209" font-size="22" fill="#aab5bf">Fixed questions. Native answers.</text>
-      <text x="1070" y="243" font-size="22" fill="#aab5bf">Evidence your agent can revisit.</text>
+      <text x="287" y="90" font-size="18" letter-spacing="2.4" fill="#a9b5bf">COMMENT ANALYSIS FOR PI</text>
+      <text x="68" y="192" font-size="66" font-weight="600" letter-spacing="-2.8" fill="#f1f2ed">From source comments</text>
+      <text x="68" y="266" font-size="66" font-weight="600" letter-spacing="-2.8" fill="#aecbbd">to reviewable evidence.</text>
       <path d="M68 312H1532" stroke="#36404b"/>
 
       <!-- The continuous path connects source preparation, inference and validation. -->
@@ -47,9 +42,8 @@
       <g fill="#e6b780"><circle cx="784" cy="754" r="3"/><circle cx="540" cy="489" r="3"/></g>
 
       <!-- Source: an inspectable, deliberately contradictory example. -->
-      <circle cx="85" cy="362" r="17" stroke="#4b5d59" fill="#18221f"/>
       <text x="85" y="368" text-anchor="middle" font-size="14" font-weight="600" fill="#bcd5c6">01</text>
-      <text x="116" y="371" font-size="26" font-weight="550" fill="#e7ece7">Capture the change</text>
+      <text x="116" y="371" font-size="26" font-weight="550" fill="#e7ece7">Capture source</text>
       <g filter="url(#shadow)">
         <rect x="78" y="423" width="410" height="290" rx="14" fill="#121b23" stroke="#34434d" transform="rotate(-3 283 568)"/>
         <rect x="68" y="410" width="420" height="294" rx="14" fill="url(#panel)" stroke="#4a5660"/>
@@ -70,13 +64,13 @@
       <text x="92" y="681" font-size="16" fill="#91a1af">Files · working tree · branch comparison</text>
       <path d="M92 759h372" stroke="#35404a"/>
       <g transform="translate(93 784)" stroke="#9fb7ab" stroke-width="1.6"><rect width="17" height="15" y="6" rx="3"/><path d="M4 6V2a4.5 4.5 0 0 1 9 0v4"/></g>
-      <text x="125" y="803" font-size="20" fill="#c7d4cf">Frozen text. Exact source ranges.</text>
-      <text x="92" y="839" font-size="18" fill="#91a1af">No source rewriting.</text>
+      <text x="125" y="803" font-size="20" fill="#c7d4cf">Preserve text and source locations.</text>
+      <text x="92" y="839" font-size="18" fill="#91a1af">Source remains unchanged.</text>
 
       <!-- Deterministic preparation and the single inference boundary. -->
       <rect x="580" y="402" width="408" height="88" rx="14" fill="url(#panel)" stroke="#48544d"/>
       <text x="602" y="434" font-size="14" letter-spacing="1.4" fill="#a9c0b2">02 / PREPARE LOCALLY</text>
-      <text x="602" y="468" font-size="22" font-weight="500" fill="#e3e9e3">AST + bounded local context</text>
+      <text x="602" y="468" font-size="21" font-weight="500" fill="#e3e9e3">Extract comments and local context</text>
       <text x="784" y="558" text-anchor="middle" font-size="13" letter-spacing="2.2" fill="#d6b58e">03 / TYPESAFE API</text>
       <circle cx="784" cy="640" r="112" stroke="#e5ab73" stroke-opacity=".17"/>
       <circle cx="784" cy="640" r="97" stroke="#e5ab73" stroke-opacity=".35" stroke-dasharray="1 9" stroke-linecap="round"/>
@@ -86,19 +80,13 @@
       <path d="M740 603q44-27 87 0" stroke="#fff2d6" stroke-opacity=".45" stroke-linecap="round"/>
       <text x="784" y="651" text-anchor="middle" font-size="49" font-weight="650" letter-spacing="-2" fill="#372319">Jev</text>
       <text x="784" y="680" text-anchor="middle" font-size="15" font-weight="600" fill="#5b3826">14 fixed labels</text>
-      <g font-size="15" fill="#d5c4b4" text-anchor="middle">
-        <rect x="592" y="626" width="69" height="29" rx="14.5" fill="#242627" stroke="#4a4640"/><text x="626.5" y="646">Noul</text>
-        <rect x="906" y="607" width="76" height="29" rx="14.5" fill="#242627" stroke="#4a4640"/><text x="944" y="627">Choice</text>
-        <rect x="906" y="649" width="76" height="29" rx="14.5" fill="#242627" stroke="#4a4640"/><text x="944" y="669">Score</text>
-      </g>
       <rect x="580" y="786" width="408" height="80" rx="14" fill="url(#panel)" stroke="#48544d"/>
       <text x="602" y="816" font-size="14" letter-spacing="1.4" fill="#a9c0b2">04 / VALIDATE LOCALLY</text>
-      <text x="602" y="847" font-size="21" fill="#e3e9e3">Shape · question IDs · distributions</text>
+      <text x="602" y="847" font-size="21" fill="#e3e9e3">Check types, IDs and distributions</text>
 
       <!-- Retained evidence, followed by the actual interpretation owner. -->
-      <circle cx="1133" cy="362" r="17" stroke="#4b5d59" fill="#18221f"/>
       <text x="1133" y="368" text-anchor="middle" font-size="14" font-weight="600" fill="#bcd5c6">05</text>
-      <text x="1164" y="371" font-size="26" font-weight="550" fill="#e7ece7">Keep the evidence</text>
+      <text x="1164" y="371" font-size="26" font-weight="550" fill="#e7ece7">Retain evidence</text>
       <g filter="url(#shadow)"><rect x="1116" y="410" width="416" height="344" rx="14" fill="url(#panel)" stroke="#547163"/></g>
       <path d="M1117 464h414" stroke="#3e5149"/>
       <g transform="translate(1139 427)" stroke="#b2cfbe" stroke-width="1.5" stroke-linejoin="round"><path d="M0 0h12l5 5v17H0Z"/><path d="M12 0v6h5"/><path d="M4 11h9M4 16h7"/></g>
@@ -106,24 +94,16 @@
       <text x="1510" y="444" text-anchor="end" font-size="12" letter-spacing="1.7" fill="#9aa8b3">EXAMPLE</text>
       <text x="1140" y="502" font-family="'SFMono-Regular', Consolas, monospace" font-size="18" fill="#b7c4ce">lookup.ts:1</text>
       <text x="1140" y="537" font-size="20" fill="#e8ede8">Local consistency</text>
-      <rect x="1140" y="554" width="173" height="35" rx="7" fill="#493627" stroke="#79583b"/>
-      <circle cx="1156" cy="572" r="3" fill="#edbb87"/>
-      <text x="1170" y="579" font-size="17" font-weight="500" fill="#f1c99e">Contradicted</text>
-      <text x="1140" y="624" font-size="17" fill="#a9b9b2">Original context + native answers</text>
+      <text x="1140" y="579" font-size="23" font-weight="500" fill="#f1c99e">Contradicted</text>
+      <text x="1140" y="624" font-size="17" fill="#a9b9b2">Original context and answers</text>
       <path d="M1140 644h368" stroke="#3a454e"/>
-      <g font-size="17" fill="#c6d6cb"><text x="1140" y="676">Source references</text><text x="1140" y="707">Model + request provenance</text></g>
+      <g font-size="17" fill="#c6d6cb"><text x="1140" y="676">Source references</text><text x="1140" y="707">Model and request details</text></g>
       <g stroke="#a6cdb6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m1491 669 5 5 9-10"/><path d="m1491 700 5 5 9-10"/></g>
-      <text x="1140" y="738" font-size="14" fill="#8fa49a">FROZEN JSON · EXPLICIT FAILURE STATES</text>
       <rect x="1116" y="804" width="416" height="86" rx="14" fill="#20332d" stroke="#4d6b5b"/>
       <text x="1139" y="836" font-size="14" letter-spacing="1.4" fill="#a9c9b5">06 / PI INTERPRETS</text>
-      <text x="1139" y="868" font-size="23" font-weight="500" fill="#dcebe0">Compact report. Retrievable context.</text>
+      <text x="1139" y="868" font-size="23" font-weight="500" fill="#dcebe0">Review results in context.</text>
 
-      <!-- Honest operational boundary, kept out of the main visual path. -->
-      <path d="M68 934H1532" stroke="#36404b"/>
-      <text x="68" y="976" font-size="18" fill="#c0ccc6">TypeScript / TSX <tspan fill="#54665e"> / </tspan> Rust <tspan fill="#54665e"> / </tspan> Python <tspan fill="#54665e"> / </tspan> Solidity</text>
-      <text x="1532" y="976" text-anchor="end" font-size="18" fill="#c0ccc6">Dry-run without inference. Reuse validated cached answers.</text>
-      <text x="68" y="1018" font-size="16" fill="#8e9eac">Live path shown: selected comments and context go to Jev; Pi interprets the returned evidence.</text>
     </g>
   </g>
-  <rect x=".5" y=".5" width="1599" height="1059" rx="28" stroke="#45515b" stroke-opacity=".65"/>
+  <rect x=".5" y=".5" width="1599" height="947" rx="28" stroke="#45515b" stroke-opacity=".65"/>
 </svg>
