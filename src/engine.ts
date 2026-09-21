@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import type { Bundle, Config, Source, Unit, Execution } from './contracts.ts';
+import type { Bundle, Config, Source, Unit, Execution, ScanInput } from './contracts.ts';
 import { configuration } from './config.ts';
 import { hash, identity } from './hash.ts';
 import { extractionMetadata } from './ast.ts';
-import { captureScope, affected, type CapturedFile } from './scope.ts';
+import { captureScope, affected, type CapturedFile, type Capture } from './scope.ts';
 import { extractComments, type Extracted } from './packs/comments/context.ts';
 import { definitions, definitionHash, PACK_VERSION } from './packs/comments/questions.ts';
 import { planRequests } from './plan.ts';
@@ -136,7 +136,7 @@ interface ScanContext {
   signal: AbortSignal;
   progress: ScanProgress;
   emit: (stage: ScanStage) => void;
-  options: Pick<ScanOptions, 'onProgress'>;
+  options: ScanOptions;
 }
 async function extractFiles(
   bundle: Bundle,
@@ -221,6 +221,100 @@ function applyResponse(
       : { status: 'ok', packetId, answer: result.answers[qid]! };
   }
 }
+function createBundle(input: ScanInput, config: Config, capture: Capture, bundleId: string, startedAt: string): Bundle {
+  return {
+    schemaVersion: '1.1.0',
+    kind: 'jevvy.comments.bundle',
+    bundleId,
+    producer: { name: 'jevvy', version: '0.1.0' },
+    pack: { id: 'comments', version: PACK_VERSION, definitionHash },
+    extraction: extractionMetadata,
+    run: {
+      mode: input.dryRun ? 'dry_run' : 'live',
+      status: 'completed',
+      scope: capture.scope,
+      snapshotId: identity(
+        'snapshot',
+        capture.files.map(f => ({
+          path: f.path,
+          oldPath: f.oldPath,
+          before: f.before === null ? null : hash(f.before),
+          content: f.content === null ? null : hash(f.content),
+        })),
+      ),
+      requestedModel: config.model,
+      resolvedModel: null,
+      startedAt,
+      finishedAt: startedAt,
+    },
+    definitions: structuredClone(definitions),
+    sources: {},
+    contexts: {},
+    units: [],
+    excluded: [],
+    removed: [],
+    executions: {},
+    coverage: {
+      files: capture.outcomes,
+      units: { selected: 0, excluded: 0, removed: 0 },
+      labels: { ok: 0, not_applicable: 0, not_evaluated: 0, error: 0, cancelled: 0 },
+      cachedPackets: 0,
+    },
+    diagnostics: capture.diagnostics,
+  };
+}
+async function analyseRequests(bundle: Bundle, config: Config, context: ScanContext): Promise<void> {
+  const { signal, progress, emit, options } = context;
+  const units = new Map(bundle.units.map(u => [u.id, u]));
+  let transport: Transport | undefined = options.transport;
+  let finished = 0;
+  await bounded(Object.entries(bundle.executions), config.requestConcurrency, async ([packetId, e]) => {
+    const mark = (status: 'error' | 'cancelled', reason: string) => {
+      e.status = status;
+      e.diagnostics.push(reason);
+      for (const binding of Object.values(e.bindings))
+        units.get(binding.unitId)!.labels[binding.labelId] = { status, reason };
+    };
+    if (signal.aborted) {
+      mark('cancelled', 'Run cancelled before request');
+      progress.packets.cancelled++;
+      progress.packets.completed++;
+      emit('analyse');
+      return;
+    }
+    progress.packets.active++;
+    emit('analyse');
+    try {
+      const hit = await cached(config, bundle, e);
+      if (!hit) transport ??= jevTransport(config);
+      e.origin = hit ? 'cache' : 'provider';
+      const raw = hit ? hit.response : await transport!(e.request, signal);
+      const result = validateResponse(raw, e);
+      if (!isModelAlias(config.model) && result.model !== config.model)
+        throw new Error('Provider returned a different model than requested');
+      e.origin = hit ? 'cache' : 'provider';
+      e.cacheSource = hit?.bundleId ?? null;
+      applyResponse(e, result, packetId, units);
+      if (!hit)
+        try {
+          await storeCache(config, bundle, e, result);
+        } catch {
+          e.diagnostics.push('Cache write failed; results retained');
+        }
+    } catch (error) {
+      mark(
+        signal.aborted ? 'cancelled' : 'error',
+        signal.aborted ? 'Run cancelled during request' : transportError(error),
+      );
+    }
+    progress.packets.active--;
+    progress.packets.completed++;
+    if (e.status !== 'planned') progress.packets[e.status]++;
+    if (e.origin === 'cache') progress.packets.cached++;
+    emit('analyse');
+    options.onProgress?.(`Processed ${++finished}/${Object.keys(bundle.executions).length} packets`);
+  });
+}
 export async function scan(value: unknown, options: ScanOptions): Promise<ScanResult> {
   const input = validateInput(value),
     config = configuration(options.config);
@@ -238,46 +332,7 @@ export async function scan(value: unknown, options: ScanOptions): Promise<ScanRe
     emit('capture');
     options.onProgress?.('Capturing source');
     const capture = await captureScope(input, options.cwd, signal);
-    const bundle: Bundle = {
-      schemaVersion: '1.1.0',
-      kind: 'jevvy.comments.bundle',
-      bundleId: progress.runId,
-      producer: { name: 'jevvy', version: '0.1.0' },
-      pack: { id: 'comments', version: PACK_VERSION, definitionHash },
-      extraction: extractionMetadata,
-      run: {
-        mode: input.dryRun ? 'dry_run' : 'live',
-        status: 'completed',
-        scope: capture.scope,
-        snapshotId: identity(
-          'snapshot',
-          capture.files.map(f => ({
-            path: f.path,
-            oldPath: f.oldPath,
-            before: f.before === null ? null : hash(f.before),
-            content: f.content === null ? null : hash(f.content),
-          })),
-        ),
-        requestedModel: config.model,
-        resolvedModel: null,
-        startedAt,
-        finishedAt: startedAt,
-      },
-      definitions: structuredClone(definitions),
-      sources: {},
-      contexts: {},
-      units: [],
-      excluded: [],
-      removed: [],
-      executions: {},
-      coverage: {
-        files: capture.outcomes,
-        units: { selected: 0, excluded: 0, removed: 0 },
-        labels: { ok: 0, not_applicable: 0, not_evaluated: 0, error: 0, cancelled: 0 },
-        cachedPackets: 0,
-      },
-      diagnostics: capture.diagnostics,
-    };
+    const bundle = createBundle(input, config, capture, progress.runId, startedAt);
     await extractFiles(bundle, capture.files, config, { signal, progress, emit, options });
     bundle.units.sort(
       (a, b) =>
@@ -294,57 +349,8 @@ export async function scan(value: unknown, options: ScanOptions): Promise<ScanRe
     else if (bundle.coverage.files.some(f => ['parse_error', 'unreadable'].includes(f.status)))
       bundle.run.status = bundle.units.length ? 'partial' : 'failed';
     validateBundle(bundle);
-    const units = new Map(bundle.units.map(u => [u.id, u]));
-    if (!input.dryRun && Object.keys(bundle.executions).length) {
-      let transport: Transport | undefined = options.transport;
-      let finished = 0;
-      await bounded(Object.entries(bundle.executions), config.requestConcurrency, async ([packetId, e]) => {
-        const mark = (status: 'error' | 'cancelled', reason: string) => {
-          e.status = status;
-          e.diagnostics.push(reason);
-          for (const binding of Object.values(e.bindings))
-            units.get(binding.unitId)!.labels[binding.labelId] = { status, reason };
-        };
-        if (signal.aborted) {
-          mark('cancelled', 'Run cancelled before request');
-          progress.packets.cancelled++;
-          progress.packets.completed++;
-          emit('analyse');
-          return;
-        }
-        progress.packets.active++;
-        emit('analyse');
-        try {
-          const hit = await cached(config, bundle, e);
-          if (!hit) transport ??= jevTransport(config);
-          e.origin = hit ? 'cache' : 'provider';
-          const raw = hit ? hit.response : await transport!(e.request, signal);
-          const result = validateResponse(raw, e);
-          if (!isModelAlias(config.model) && result.model !== config.model)
-            throw new Error('Provider returned a different model than requested');
-          e.origin = hit ? 'cache' : 'provider';
-          e.cacheSource = hit?.bundleId ?? null;
-          applyResponse(e, result, packetId, units);
-          if (!hit)
-            try {
-              await storeCache(config, bundle, e, result);
-            } catch {
-              e.diagnostics.push('Cache write failed; results retained');
-            }
-        } catch (error) {
-          mark(
-            signal.aborted ? 'cancelled' : 'error',
-            signal.aborted ? 'Run cancelled during request' : transportError(error),
-          );
-        }
-        progress.packets.active--;
-        progress.packets.completed++;
-        if (e.status !== 'planned') progress.packets[e.status]++;
-        if (e.origin === 'cache') progress.packets.cached++;
-        emit('analyse');
-        options.onProgress?.(`Processed ${++finished}/${Object.keys(bundle.executions).length} packets`);
-      });
-    }
+    if (!input.dryRun && Object.keys(bundle.executions).length)
+      await analyseRequests(bundle, config, { signal, progress, emit, options });
     const models = [...new Set(Object.values(bundle.executions).flatMap(e => (e.model ? [e.model] : [])))];
     bundle.run.resolvedModel = models.length === 1 ? models[0]! : null;
     if (models.length > 1) bundle.diagnostics.push('Multiple resolved models; per-execution models retained');

@@ -261,6 +261,62 @@ function declarationName(owner: SgNode | undefined, language: Language): string 
     null
   );
 }
+function commentContext(sourceId: string, source: Source, comment: Comment, errors: Range[], maxContextChars: number) {
+  const contexts: Record<string, Context> = {};
+  const { owner, attachment } = ownerFor(comment, source);
+  const ownerRange = owner ? rangeOf(owner) : undefined;
+  const refs: string[] = [],
+    omissions: string[] = [];
+  const add = (range: Range, role: Context['role']) => {
+    const contextId = identity('context', { sourceId, range, role });
+    contexts[contextId] = { sourceId, range, role, text: source.content.slice(range.startUtf16, range.endUtf16) };
+    if (!refs.includes(contextId)) refs.push(contextId);
+  };
+  let status: Unit['context']['status'] = 'complete_local';
+  if (owner && ownerRange) {
+    const { wrapped, range } = ownerContext(source, owner);
+    if (range.endUtf16 - range.startUtf16 <= maxContextChars) add(range, 'owner');
+    else {
+      status = 'partial';
+      omissions.push('oversized_owner');
+    }
+    // Headers preserve enclosing callable/class meaning for statement owners.
+    for (const ancestor of ancestors(wrapped)) {
+      const adapter = rules[source.language];
+      if (!adapter.callables.has(kind(ancestor)) && !adapter.declarations.has(kind(ancestor))) continue;
+      const body = ancestor.field('body');
+      if (body && rangeOf(body).startUtf16 > rangeOf(ancestor).startUtf16) {
+        const header = rangeFor(source.content, rangeOf(ancestor).startUtf16, rangeOf(body).startUtf16);
+        if (header.endUtf16 - header.startUtf16 <= 2000) add(header, 'header');
+        else {
+          status = 'partial';
+          omissions.push('oversized_enclosing_header');
+        }
+      }
+    }
+    if (
+      errors.some(
+        e =>
+          overlaps(e, range) ||
+          (e.startUtf16 === e.endUtf16 && e.startUtf16 >= range.startUtf16 && e.startUtf16 <= range.endUtf16),
+      )
+    ) {
+      status = 'partial';
+      omissions.push('parse_error');
+    }
+  } else {
+    status = 'partial';
+    omissions.push('ambiguous_attachment');
+    // Preserve whole neighbouring lines, and mark this substitute as partial.
+    const start = source.content.lastIndexOf('\n', Math.max(0, comment.range.startUtf16 - 300)) + 1;
+    const endNewline = source.content.indexOf('\n', comment.range.endUtf16 + 300);
+    const end = endNewline < 0 ? source.content.length : endNewline;
+    if (end - start <= maxContextChars) add(rangeFor(source.content, start, end), 'surroundings');
+    else omissions.push('oversized_surroundings');
+  }
+  if (!refs.length) status = 'unavailable';
+  return { owner, ownerRange, attachment, contexts, context: { status, refs, omissions } };
+}
 export async function extractComments(
   sourceId: string,
   source: Source,
@@ -280,58 +336,14 @@ export async function extractComments(
       excluded.push({ sourceId, range: comment.range, text, reason: comment.excluded });
       continue;
     }
-    const { owner, attachment } = ownerFor(comment, source);
-    const ownerRange = owner ? rangeOf(owner) : undefined;
-    const refs: string[] = [],
-      omissions: string[] = [];
-    const add = (range: Range, role: Context['role']) => {
-      const contextId = identity('context', { sourceId, range, role });
-      contexts[contextId] = { sourceId, range, role, text: source.content.slice(range.startUtf16, range.endUtf16) };
-      if (!refs.includes(contextId)) refs.push(contextId);
-    };
-    let status: Unit['context']['status'] = 'complete_local';
-    if (owner && ownerRange) {
-      const { wrapped, range } = ownerContext(source, owner);
-      if (range.endUtf16 - range.startUtf16 <= config.maxContextChars) add(range, 'owner');
-      else {
-        status = 'partial';
-        omissions.push('oversized_owner');
-      }
-      // Headers preserve enclosing callable/class meaning for statement owners.
-      for (const ancestor of ancestors(wrapped)) {
-        const adapter = rules[source.language];
-        if (!adapter.callables.has(kind(ancestor)) && !adapter.declarations.has(kind(ancestor))) continue;
-        const body = ancestor.field('body');
-        if (body && rangeOf(body).startUtf16 > rangeOf(ancestor).startUtf16) {
-          const header = rangeFor(source.content, rangeOf(ancestor).startUtf16, rangeOf(body).startUtf16);
-          if (header.endUtf16 - header.startUtf16 <= 2000) add(header, 'header');
-          else {
-            status = 'partial';
-            omissions.push('oversized_enclosing_header');
-          }
-        }
-      }
-      if (
-        errors.some(
-          e =>
-            overlaps(e, range) ||
-            (e.startUtf16 === e.endUtf16 && e.startUtf16 >= range.startUtf16 && e.startUtf16 <= range.endUtf16),
-        )
-      ) {
-        status = 'partial';
-        omissions.push('parse_error');
-      }
-    } else {
-      status = 'partial';
-      omissions.push('ambiguous_attachment');
-      // Preserve whole neighbouring lines, and mark this substitute as partial.
-      const start = source.content.lastIndexOf('\n', Math.max(0, comment.range.startUtf16 - 300)) + 1;
-      const endNewline = source.content.indexOf('\n', comment.range.endUtf16 + 300);
-      const end = endNewline < 0 ? source.content.length : endNewline;
-      if (end - start <= config.maxContextChars) add(rangeFor(source.content, start, end), 'surroundings');
-      else omissions.push('oversized_surroundings');
-    }
-    if (!refs.length) status = 'unavailable';
+    const {
+      owner,
+      ownerRange,
+      attachment,
+      contexts: selected,
+      context,
+    } = commentContext(sourceId, source, comment, errors, config.maxContextChars);
+    Object.assign(contexts, selected);
     const name = declarationName(owner, source.language);
     const structure: Structure = {
       syntax: comment.syntax,
@@ -347,7 +359,7 @@ export async function extractComments(
       text,
       structure,
       change: 'unchanged',
-      context: { status, refs, omissions },
+      context,
       labels: {},
     });
   }

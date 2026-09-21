@@ -22,7 +22,7 @@ test('progress respects display widths, essential cancellation and unknown total
     p.stage = total ? 'analyse' : 'capture';
     p.packets.total = total;
     for (let w = 1; w <= 160; w++) {
-      const rows = progressLines(p, '深い/👩🏽‍💻/é/' + 'long '.repeat(100), w, theme, true, 1000);
+      const rows = progressLines(p, '深い/👩🏽‍💻/é/' + 'long '.repeat(100), { width: w, theme, motion: true, now: 1000 });
       assert.ok(rows.length <= 4);
       for (const row of rows) assert.ok(visibleWidth(row) <= w);
       if (w >= 40) assert.match(plain(rows.join('\n')), /\/jevvy cancel/);
@@ -136,18 +136,17 @@ test('inspector pages comments and frozen source, scrolls distributions, and res
     { cwd: f.root, persist: false, config: { storageDir: f.storageDir }, transport: async r => syntheticResponse(r) },
   );
   let closed = false;
-  const inspector = new ResultInspector(
-    bundle,
-    ['Showing frozen evidence'],
+  const inspector = new ResultInspector(bundle, {
+    warnings: ['Showing frozen evidence'],
     theme,
-    () => 20,
-    () => {},
-    () => {
+    height: () => 20,
+    requestRender: () => {},
+    close: () => {
       closed = true;
     },
-    data => data === 'x',
-    'x',
-  );
+    cancelKey: data => data === 'x',
+    cancelLabel: 'x',
+  });
   const text = () => plain(inspector.render(100).join('\n'));
   assert.match(text(), /first/);
   inspector.handleInput('\x1b[C');

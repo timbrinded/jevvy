@@ -25,9 +25,9 @@
     // Keep each function within 20 independent paths. Split distinct
     // responsibilities when a function exceeds this limit.
     "complexity": ["error", 20],
-    // Functions take at most 4 parameters; wider signatures must become an
-    // options object. Legacy warnings: ResultInspector (8), progressLines (6).
-    "max-params": ["warn", 4],
+    // Allow Pi's five-parameter tool execute signature. Group related
+    // arguments into named options when a wider interface is needed.
+    "max-params": ["warn", 5],
     // Functions stay short enough to review in one screen.
     "max-lines-per-function": ["warn", 80]
   },

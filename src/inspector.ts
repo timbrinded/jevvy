@@ -4,6 +4,16 @@ import type { Bundle, ResultsInput } from './contracts.ts';
 import { render, type Page } from './render.ts';
 import { plain } from './ui.ts';
 
+interface InspectorOptions {
+  warnings: string[];
+  theme: Theme;
+  height: () => number;
+  requestRender: () => void;
+  close: () => void;
+  cancelKey: (data: string) => boolean;
+  cancelLabel?: string;
+}
+
 /** Reads the frozen bundle only. Inspecting another page never calls Jev. */
 export class ResultInspector implements Component {
   private view: NonNullable<ResultsInput['view']> = 'units';
@@ -23,13 +33,7 @@ export class ResultInspector implements Component {
   private readonly cancelLabel: string;
   constructor(
     bundle: Bundle,
-    warnings: string[],
-    theme: Theme,
-    height: () => number,
-    requestRender: () => void,
-    close: () => void,
-    cancelKey: (data: string) => boolean,
-    cancelLabel = 'Esc',
+    { warnings, theme, height, requestRender, close, cancelKey, cancelLabel = 'Esc' }: InspectorOptions,
   ) {
     this.bundle = bundle;
     this.warnings = warnings;
@@ -142,18 +146,17 @@ export async function inspectResults(
           }
         };
         onClose(close);
-        return new ResultInspector(
-          bundle,
+        return new ResultInspector(bundle, {
           warnings,
           theme,
-          () => Math.max(3, tui.terminal.rows - 6),
-          () => {
+          height: () => Math.max(3, tui.terminal.rows - 6),
+          requestRender: () => {
             if (!closed) tui.requestRender();
           },
           close,
-          data => keys.matches(data, 'tui.select.cancel'),
-          keys.getKeys('tui.select.cancel').join('/') || 'Cancel',
-        );
+          cancelKey: data => keys.matches(data, 'tui.select.cancel'),
+          cancelLabel: keys.getKeys('tui.select.cancel').join('/') || 'Cancel',
+        });
       },
       { overlay: true, overlayOptions: { width: '100%', maxHeight: '90%', anchor: 'center' } },
     );

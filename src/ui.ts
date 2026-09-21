@@ -17,10 +17,7 @@ const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '
 export function progressLines(
   p: ScanProgress,
   scope: string,
-  width: number,
-  theme: Theme,
-  motion: boolean,
-  now = Date.now(),
+  { width, theme, motion, now = Date.now() }: { width: number; theme: Theme; motion: boolean; now?: number },
 ): string[] {
   if (width < 1) return [];
   const elapsed = Math.max(0, now - p.startedAt);
@@ -179,7 +176,7 @@ export class ProgressDisplay {
           render: width => {
             const latest = [...this.runs.values()].at(-1);
             if (!latest) return [];
-            const lines = progressLines(latest.progress, latest.scope, width, theme, this.motion);
+            const lines = progressLines(latest.progress, latest.scope, { width, theme, motion: this.motion });
             if (this.runs.size > 1)
               lines[0] = truncateToWidth(
                 theme.fg('accent', `jevvy · ${this.runs.size} active scans`) + ' · ' + progressText(latest.progress),
