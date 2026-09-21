@@ -6,7 +6,7 @@
   "engines": { "node": ">=22.19.0" },
   "pi": { "extensions": ["./dist/extension.js"] },
   "exports": { ".": "./dist/engine.js", "./contracts": "./dist/contracts.js" },
-  "files": ["dist", "native", "schemas", "examples", "README.md", "docs/contracts.md", "docs/verification.md", "docs/evaluation.md"],
+  "files": ["dist", "native", "schemas", "examples", "README.md", "docs/contracts.md", "docs/verification.md", "docs/evaluation.md", "docs/images"],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",

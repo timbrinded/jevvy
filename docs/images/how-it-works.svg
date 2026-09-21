@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="800" viewBox="0 0 1240 800" role="img" aria-labelledby="title desc">
+  <title id="title">How Javi turns source comments into reviewable evidence</title>
+  <desc id="desc">Read clockwise: capture selected source, extract comments and local context, ask Jev fixed questions, validate answers, retain a frozen results bundle, then let Pi interpret the evidence. Dry-run prepares requests without inference. Live requests send selected comments and context to TypeSafe.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0L6 3L0 6" fill="none" stroke="#5c7772" stroke-width="1.4"/></marker>
+  </defs>
+  <rect width="1240" height="800" rx="24" fill="#f5f3ed"/>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <text x="48" y="57" font-size="17" font-weight="700" letter-spacing="3" fill="#37665b">JAVI / THE JEVVY EXTENSION</text>
+    <text x="48" y="114" font-size="43" font-weight="700" fill="#192e2a">From source comments</text>
+    <text x="48" y="166" font-size="43" font-weight="700" fill="#192e2a">to reviewable evidence.</text>
+    <text x="1192" y="153" text-anchor="end" font-size="20" fill="#52645e">Source stays unchanged.</text>
+
+    <g fill="none" stroke="#5c7772" stroke-width="2.5" marker-end="url(#arrow)">
+      <path d="M392 328H448"/><path d="M784 328H840"/>
+      <path d="M1020 432V486"/>
+      <path d="M848 588H792"/><path d="M456 588H400"/>
+    </g>
+
+    <rect x="48" y="226" width="344" height="206" rx="16" fill="#fffefa" stroke="#d4ddd6"/>
+    <text x="72" y="266" font-size="16" font-weight="700" letter-spacing="2" fill="#37665b">01 / LOCAL</text>
+    <text x="72" y="311" font-size="28" font-weight="700" fill="#192e2a">Capture source</text>
+    <text x="72" y="350" font-size="21" fill="#52645e">Files, working changes,</text>
+    <text x="72" y="379" font-size="21" fill="#52645e">or a Git branch comparison.</text>
+    <text x="72" y="408" font-size="18" fill="#37665b">Freeze text + source locations.</text>
+
+    <rect x="456" y="226" width="328" height="206" rx="16" fill="#fffefa" stroke="#d4ddd6"/>
+    <text x="480" y="266" font-size="16" font-weight="700" letter-spacing="2" fill="#37665b">02 / LOCAL</text>
+    <text x="480" y="311" font-size="28" font-weight="700" fill="#192e2a">Prepare evidence</text>
+    <text x="480" y="350" font-size="21" fill="#52645e">Parse comments and code.</text>
+    <text x="480" y="379" font-size="21" fill="#52645e">Attach local context.</text>
+    <text x="480" y="408" font-size="18" fill="#37665b">Dry-run exposes exact requests.</text>
+
+    <rect x="848" y="226" width="344" height="206" rx="16" fill="#193e35"/>
+    <text x="872" y="266" font-size="16" font-weight="700" letter-spacing="2" fill="#bde4b0">03 / TYPESAFE API</text>
+    <text x="872" y="311" font-size="28" font-weight="700" fill="#fffefa">Ask Jev</text>
+    <text x="872" y="350" font-size="21" fill="#deebe3">Fixed questions across</text>
+    <text x="872" y="379" font-size="21" fill="#deebe3">14 evaluation dimensions.</text>
+    <text x="872" y="408" font-size="18" fill="#bde4b0">Selected comments + context.</text>
+
+    <rect x="848" y="494" width="344" height="206" rx="16" fill="#fffefa" stroke="#d4ddd6"/>
+    <text x="872" y="534" font-size="16" font-weight="700" letter-spacing="2" fill="#37665b">04 / LOCAL</text>
+    <text x="872" y="579" font-size="28" font-weight="700" fill="#192e2a">Validate answers</text>
+    <text x="872" y="618" font-size="21" fill="#52645e">Check shape, question IDs</text>
+    <text x="872" y="647" font-size="21" fill="#52645e">and native distributions.</text>
+    <text x="872" y="676" font-size="18" fill="#37665b">Keep failures explicit.</text>
+
+    <rect x="456" y="494" width="328" height="206" rx="16" fill="#fffefa" stroke="#d4ddd6"/>
+    <text x="480" y="534" font-size="16" font-weight="700" letter-spacing="2" fill="#37665b">05 / LOCAL STORAGE</text>
+    <text x="480" y="579" font-size="28" font-weight="700" fill="#192e2a">Retain the bundle</text>
+    <text x="480" y="618" font-size="21" fill="#52645e">Labels, frozen source,</text>
+    <text x="480" y="647" font-size="21" fill="#52645e">context and provenance.</text>
+    <text x="480" y="676" font-size="18" fill="#37665b">One immutable JSON record.</text>
+
+    <rect x="48" y="494" width="344" height="206" rx="16" fill="#e3ecdf" stroke="#bbcfb5"/>
+    <text x="72" y="534" font-size="16" font-weight="700" letter-spacing="2" fill="#37665b">06 / PI</text>
+    <text x="72" y="579" font-size="28" font-weight="700" fill="#192e2a">Interpret results</text>
+    <text x="72" y="618" font-size="21" fill="#52645e">Read compact comment cards.</text>
+    <text x="72" y="647" font-size="21" fill="#52645e">Retrieve the supporting code.</text>
+    <text x="72" y="676" font-size="18" fill="#37665b">Pi decides what the evidence means.</text>
+
+    <text x="48" y="751" font-size="18" fill="#52645e">Live path shown. Valid cached answers can be reused; dry-run performs no inference.</text>
+  </g>
+</svg>
