@@ -1,15 +1,13 @@
-# Javi
+# jevvy
 
 **Comment analysis for Pi, powered by Jev.**
 
-Javi helps a coding agent examine what a comment says, how useful it is, and
+jevvy helps a coding agent examine what a comment says, how useful it is, and
 whether the nearby implementation supports its claims. It captures source,
 asks Jev a fixed set of questions, and gives Pi structured answers linked to
 that exact source. Pi interprets the evidence; the extension leaves source
 files unchanged.
 
-The repository is **Javi**. The extension and npm package are named **`jevvy`**,
-which is also the name used by its commands, tools and environment variables.
 [Pi](https://github.com/badlogic/pi-mono) is the coding-agent host;
 [Jev](https://docs.typesafe.ai/) supplies the semantic and qualitative evaluations.
 
@@ -26,8 +24,8 @@ The [verification record](docs/verification.md) lists the actual tested runtimes
 including the emulated x64 checks and Linux glibc coverage.
 
 ```sh
-git clone https://github.com/timbrinded/Javi.git
-cd Javi
+git clone https://github.com/timbrinded/jevvy.git
+cd jevvy
 npm ci
 npm run build
 npm exec -- pi -e ./dist/extension.js
@@ -56,7 +54,7 @@ directory, supplying the absolute extension path:
 
 ```sh
 cd /path/to/your/project
-/path/to/Javi/node_modules/.bin/pi -e /path/to/Javi/dist/extension.js
+/path/to/jevvy/node_modules/.bin/pi -e /path/to/jevvy/dist/extension.js
 ```
 
 Replace both paths with your local directories. File arguments resolve against

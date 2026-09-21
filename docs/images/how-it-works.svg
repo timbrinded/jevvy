@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1240" height="800" viewBox="0 0 1240 800" role="img" aria-labelledby="title desc">
-  <title id="title">How Javi turns source comments into reviewable evidence</title>
+  <title id="title">How jevvy turns source comments into reviewable evidence</title>
   <desc id="desc">Read clockwise: capture selected source, extract comments and local context, ask Jev fixed questions, validate answers, retain a frozen results bundle, then let Pi interpret the evidence. Dry-run prepares requests without inference. Live requests send selected comments and context to TypeSafe.</desc>
   <defs>
     <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0L6 3L0 6" fill="none" stroke="#5c7772" stroke-width="1.4"/></marker>
   </defs>
   <rect width="1240" height="800" rx="24" fill="#f5f3ed"/>
   <g font-family="Arial, Helvetica, sans-serif">
-    <text x="48" y="57" font-size="17" font-weight="700" letter-spacing="3" fill="#37665b">JAVI / THE JEVVY EXTENSION</text>
+    <text x="48" y="57" font-size="17" font-weight="700" letter-spacing="3" fill="#37665b">JEVVY / A PI EXTENSION</text>
     <text x="48" y="114" font-size="43" font-weight="700" fill="#192e2a">From source comments</text>
     <text x="48" y="166" font-size="43" font-weight="700" fill="#192e2a">to reviewable evidence.</text>
     <text x="1192" y="153" text-anchor="end" font-size="20" fill="#52645e">Source stays unchanged.</text>
