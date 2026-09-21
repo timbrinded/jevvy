@@ -24,8 +24,6 @@
       <!-- Identity and editorial headline -->
       <g transform="translate(68 62)" stroke="#c6e7d6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M0 7h12v18c0 10-6 15-14 15"/><path d="m21 8 11 11-11 11"/></g>
       <text x="117" y="99" font-size="42" font-weight="650" letter-spacing="-2" fill="#f0f3ee">jevvy</text>
-      <path d="M262 68v30" stroke="#46515a"/>
-      <text x="287" y="90" font-size="18" letter-spacing="2.4" fill="#a9b5bf">COMMENT ANALYSIS FOR PI</text>
       <text x="68" y="192" font-size="66" font-weight="600" letter-spacing="-2.8" fill="#f1f2ed">From source comments</text>
       <text x="68" y="266" font-size="66" font-weight="600" letter-spacing="-2.8" fill="#aecbbd">to reviewable evidence.</text>
       <path d="M68 312H1532" stroke="#36404b"/>
@@ -62,10 +60,6 @@
         <text x="128" y="633" fill="#dce3e7">}</text>
       </g>
       <text x="92" y="681" font-size="16" fill="#91a1af">Files · working tree · branch comparison</text>
-      <path d="M92 759h372" stroke="#35404a"/>
-      <g transform="translate(93 784)" stroke="#9fb7ab" stroke-width="1.6"><rect width="17" height="15" y="6" rx="3"/><path d="M4 6V2a4.5 4.5 0 0 1 9 0v4"/></g>
-      <text x="125" y="803" font-size="20" fill="#c7d4cf">Preserve text and source locations.</text>
-      <text x="92" y="839" font-size="18" fill="#91a1af">Source remains unchanged.</text>
 
       <!-- Deterministic preparation and the single inference boundary. -->
       <rect x="580" y="402" width="408" height="88" rx="14" fill="url(#panel)" stroke="#48544d"/>
