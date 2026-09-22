@@ -20,7 +20,7 @@ const CacheSchema = Type.Object(
 );
 const validator = Compile(CacheSchema);
 function cacheKey(bundle: Bundle, execution: Execution): string {
-  return hash({ requestHash: execution.requestHash, pack: bundle.pack.definitionHash, extraction: bundle.extraction });
+  return hash({ requestHash: execution.requestHash, pack: bundle.pack, extraction: bundle.extraction });
 }
 export async function cached(
   config: Config,

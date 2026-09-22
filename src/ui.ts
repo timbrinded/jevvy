@@ -24,9 +24,9 @@ export function progressLines(
   const spinner = motion ? frames[Math.floor(elapsed / 160) % frames.length]! : '●';
   const phase = {
     capture: 'Capturing source',
-    extract: 'Extracting comments',
+    extract: `Extracting ${p.pack ?? 'comments'}`,
     plan: 'Planning requests',
-    analyse: 'Analysing comments',
+    analyse: `Analysing ${p.pack ?? 'comments'}`,
     persist: 'Saving results',
     complete: 'Finished',
     failed: 'Failed',
@@ -75,11 +75,13 @@ export interface ResultDetails extends Omit<Page, 'text'> {
   elapsed: number;
   coverage: Bundle['coverage'];
   warnings: string[];
+  pack?: Bundle['pack']['id'];
 }
 export function resultDetails(bundle: Bundle, page: Page, path?: string, warnings: string[] = []): ResultDetails {
   return {
     kind: 'jevvy-result',
     bundleId: bundle.bundleId,
+    pack: bundle.pack.id,
     path,
     cursor: page.cursor,
     status: bundle.run.status,
@@ -97,6 +99,8 @@ export function resultDetails(bundle: Bundle, page: Page, path?: string, warning
     labels: page.labels,
     includeContext: page.includeContext,
     includeDefinitions: page.includeDefinitions,
+    minProbability: page.minProbability,
+    minConfidence: page.minConfidence,
     view: page.view,
     order: page.order,
     selection: page.selection,
@@ -106,6 +110,11 @@ export function resultDetails(bundle: Bundle, page: Page, path?: string, warning
 }
 export function noAnswers(d: ResultDetails): boolean {
   return !d.dryRun && d.coverage.labels.ok === 0 && d.coverage.labels.error > 0;
+}
+
+function filterSummary(d: ResultDetails): string[] {
+  if (d.minProbability === undefined && d.minConfidence === undefined) return [];
+  return [`Filter: ${d.order} · P(outcome) ≥ ${d.minProbability ?? 0} · confidence ≥ ${d.minConfidence ?? 0}`];
 }
 export function resultComponent(
   text: string,
@@ -118,7 +127,7 @@ export function resultComponent(
   const status = noAnswers(d) ? 'No answers · requests failed' : d.dryRun ? `Preview · ${d.status}` : d.status;
   const color = noAnswers(d) || d.status === 'failed' ? 'error' : d.status === 'completed' ? 'success' : 'warning';
   const counts = [
-    `${c.units.selected} comments`,
+    `${c.units.selected} ${d.pack ?? 'comments'}`,
     `${c.labels.ok} answers`,
     `${c.labels.error} errors`,
     `${c.labels.cancelled} cancelled`,
@@ -139,6 +148,7 @@ export function resultComponent(
   for (const warning of d.warnings.slice(0, 2)) rows.push(theme.fg('warning', lineText(warning)));
   if (d.warnings.length > 2) rows.push(theme.fg('warning', `${d.warnings.length - 2} more warnings in evidence`));
   rows.push(theme.fg('dim', `${d.view}: ${d.returned}/${d.total} shown${d.cursor ? ' · more pages available' : ''}`));
+  rows.push(...filterSummary(d).map(text => theme.fg('dim', text)));
   rows.push(theme.fg('dim', `/jevvy inspect ${d.bundleId}`));
   if (expanded) rows.push('', plain(text));
   else rows.push(theme.fg('dim', 'Expand tool output for this page’s evidence'));

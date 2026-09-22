@@ -1,8 +1,20 @@
 import type { SgNode } from '@ast-grep/napi';
-import type { Bundle, Config, Context, Language, Range, Source, Structure, Unit } from '../../contracts.ts';
+import type {
+  Bundle,
+  Config,
+  Context,
+  Language,
+  Range,
+  Source as CapturedSource,
+  CommentStructure as Structure,
+  CommentUnit as Unit,
+} from '../../contracts.ts';
+import type { Extracted as PackExtraction } from '../types.ts';
 import { EXTRACTION_VERSION, overlaps, parseSource, rangeFor, rangeOf, walk } from '../../ast.ts';
 import { identity } from '../../hash.ts';
 import { rules } from './languages/index.ts';
+
+type Source = CapturedSource & { language: Language };
 
 type Comment = {
   nodes: SgNode[];
@@ -12,12 +24,7 @@ type Comment = {
   forcedOwner?: SgNode;
   excluded?: string;
 };
-export interface Extracted {
-  units: Unit[];
-  contexts: Record<string, Context>;
-  excluded: Bundle['excluded'];
-  errors: Range[];
-}
+export type Extracted = PackExtraction<Unit>;
 const kind = (n: SgNode) => String(n.kind());
 function ancestors(node: SgNode): SgNode[] {
   const result: SgNode[] = [];
@@ -46,7 +53,8 @@ function form(node: SgNode, language: Language): Pick<Comment, 'syntax' | 'style
   const syntax = text.startsWith('/*') ? 'block' : 'line';
   if (language === 'rust' && /^(\/\/\/[^/]|\/\/!|\/\*\*[^*]|\/\*!)/s.test(text)) return { syntax, style: 'rustdoc' };
   if (language === 'solidity' && /^(\/\/\/|\/\*\*)/.test(text)) return { syntax, style: 'natspec' };
-  if ((language === 'typescript' || language === 'tsx') && text.startsWith('/**')) return { syntax, style: 'jsdoc' };
+  if (['typescript', 'tsx', 'javascript', 'jsx'].includes(language) && text.startsWith('/**'))
+    return { syntax, style: 'jsdoc' };
   return { syntax, style: 'none' };
 }
 function appendComment(found: Comment[], comment: Comment, source: Source): void {
@@ -128,12 +136,11 @@ function leadingOwner(comment: Comment, source: Source): SgNode | undefined {
   const last = comment.nodes.at(-1)!,
     adapter = rules[source.language];
   let next = last.next();
-  const wrappers =
-    source.language === 'typescript' || source.language === 'tsx'
-      ? ['decorator']
-      : source.language === 'rust'
-        ? ['attribute_item', 'inner_attribute_item']
-        : [];
+  const wrappers = ['typescript', 'tsx', 'javascript', 'jsx'].includes(source.language)
+    ? ['decorator']
+    : source.language === 'rust'
+      ? ['attribute_item', 'inner_attribute_item']
+      : [];
   while (next && (adapter.comments.has(kind(next)) || wrappers.includes(kind(next)))) next = next.next();
   if (
     next?.isNamed() &&
@@ -225,7 +232,7 @@ function ownerContext(source: Source, owner: SgNode): { wrapped: SgNode; range: 
   const siblingWrappers =
     source.language === 'rust'
       ? new Set(['attribute_item'])
-      : source.language === 'typescript' || source.language === 'tsx'
+      : ['typescript', 'tsx', 'javascript', 'jsx'].includes(source.language)
         ? new Set(['decorator'])
         : new Set<string>();
   let previous = wrapped.prev();
@@ -319,9 +326,12 @@ function commentContext(sourceId: string, source: Source, comment: Comment, erro
 }
 export async function extractComments(
   sourceId: string,
-  source: Source,
+  captured: CapturedSource,
   config: Pick<Config, 'maxContextChars'>,
 ): Promise<Extracted> {
+  if (captured.language === 'json' || captured.language === 'text')
+    return { units: [], contexts: {}, excluded: [], errors: [] };
+  const source: Source = { ...captured, language: captured.language };
   const root = await parseSource(source.language, source.content);
   const nodes = walk(root);
   const errors = nodes

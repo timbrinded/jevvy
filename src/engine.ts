@@ -2,10 +2,10 @@ import { randomUUID } from 'node:crypto';
 import type { Bundle, Config, Source, Unit, Execution, ScanInput } from './contracts.ts';
 import { configuration } from './config.ts';
 import { hash, identity } from './hash.ts';
-import { extractionMetadata } from './ast.ts';
+import { extractionMetadata, rangeFor } from './ast.ts';
 import { captureScope, affected, type CapturedFile, type Capture } from './scope.ts';
-import { extractComments, type Extracted } from './packs/comments/context.ts';
-import { definitions, definitionHash, PACK_VERSION } from './packs/comments/questions.ts';
+import type { Extracted } from './packs/types.ts';
+import { packs } from './packs/index.ts';
 import { planRequests } from './plan.ts';
 import { bounded } from './queue.ts';
 import { validateBundle, validateInput, validateResponse } from './validate.ts';
@@ -145,6 +145,7 @@ async function extractFiles(
   context: ScanContext,
 ): Promise<void> {
   const { signal, progress, emit, options } = context;
+  const pack = packs[bundle.pack.id];
   type Parsed = {
     file: CapturedFile;
     sources: Source[];
@@ -171,12 +172,12 @@ async function extractFiles(
       if (file.before !== null) {
         const s = sourceFor(file, 'before');
         p.sources.push(s);
-        p.before = await extractComments(sourceId(s), s, config);
+        p.before = await pack.extract(sourceId(s), s, config);
       }
       if (file.content !== null) {
         const s = sourceFor(file, 'captured');
         p.sources.push(s);
-        p.current = await extractComments(sourceId(s), s, config);
+        p.current = await pack.extract(sourceId(s), s, config);
       }
     } catch (e) {
       p.error = transportError(e);
@@ -222,32 +223,33 @@ function applyResponse(
   }
 }
 function createBundle(input: ScanInput, config: Config, capture: Capture, bundleId: string, startedAt: string): Bundle {
+  const pack = packs[input.pack ?? 'comments'];
   return {
-    schemaVersion: '1.1.0',
-    kind: 'jevvy.comments.bundle',
+    schemaVersion: '2.0.0',
+    kind: `jevvy.${pack.id}.bundle`,
     bundleId,
     producer: { name: 'jevvy', version: '0.1.0' },
-    pack: { id: 'comments', version: PACK_VERSION, definitionHash },
+    pack: { id: pack.id, version: pack.version, definitionHash: pack.definitionHash },
     extraction: extractionMetadata,
     run: {
       mode: input.dryRun ? 'dry_run' : 'live',
       status: 'completed',
       scope: capture.scope,
-      snapshotId: identity(
-        'snapshot',
-        capture.files.map(f => ({
+      snapshotId: identity('snapshot', {
+        files: capture.files.map(f => ({
           path: f.path,
           oldPath: f.oldPath,
           before: f.before === null ? null : hash(f.before),
           content: f.content === null ? null : hash(f.content),
         })),
-      ),
+        supporting: capture.supporting.map(file => ({ path: file.path, contentHash: hash(file.content) })),
+      }),
       requestedModel: config.model,
       resolvedModel: null,
       startedAt,
       finishedAt: startedAt,
     },
-    definitions: structuredClone(definitions),
+    definitions: structuredClone(pack.definitions),
     sources: {},
     contexts: {},
     units: [],
@@ -262,6 +264,50 @@ function createBundle(input: ScanInput, config: Config, capture: Capture, bundle
     },
     diagnostics: capture.diagnostics,
   };
+}
+
+function attachSupportingFiles(bundle: Bundle, capture: Capture, config: Config): void {
+  const refs: string[] = [];
+  for (const file of capture.supporting) {
+    const source: Source = { ...file, snapshot: 'captured', contentHash: hash(file.content), encoding: 'utf-8' };
+    const id = sourceId(source);
+    bundle.sources[id] = source;
+    const range = rangeFor(file.content, 0, file.content.length);
+    const ref = identity('context', { sourceId: id, range, role: 'supporting_file' });
+    bundle.contexts[ref] = { sourceId: id, range, role: 'supporting_file', text: file.content };
+    refs.push(ref);
+  }
+  for (const unit of bundle.units) {
+    let remaining =
+      config.maxContextChars - unit.context.refs.reduce((sum, ref) => sum + bundle.contexts[ref]!.text.length, 0);
+    for (const ref of refs) {
+      const context = bundle.contexts[ref]!;
+      if (
+        unit.context.refs.some(existing => {
+          const bound = bundle.contexts[existing]!;
+          return (
+            bound.sourceId === context.sourceId &&
+            bound.range.startUtf16 <= context.range.startUtf16 &&
+            bound.range.endUtf16 >= context.range.endUtf16
+          );
+        })
+      )
+        continue;
+      if (context.text.length > remaining) {
+        unit.context.omissions.push(`supporting_file_too_large:${bundle.sources[context.sourceId]!.path}`);
+        if (unit.context.status === 'complete_local') unit.context.status = 'partial';
+        continue;
+      }
+      unit.context.refs.push(ref);
+      remaining -= context.text.length;
+    }
+    for (const path of capture.scope.contextFiles ?? []) {
+      if (!capture.supporting.some(file => file.path === path)) {
+        unit.context.omissions.push(`supporting_file_unavailable:${path}`);
+        if (unit.context.status === 'complete_local') unit.context.status = 'partial';
+      }
+    }
+  }
 }
 async function analyseRequests(bundle: Bundle, config: Config, context: ScanContext): Promise<void> {
   const { signal, progress, emit, options } = context;
@@ -319,7 +365,12 @@ export async function scan(value: unknown, options: ScanOptions): Promise<ScanRe
   const input = validateInput(value),
     config = configuration(options.config);
   const startedAt = new Date().toISOString();
-  const progress = initialProgress(`bundle_${randomUUID()}`, input.dryRun ?? false, Date.parse(startedAt));
+  const progress = initialProgress(
+    `bundle_${randomUUID()}`,
+    input.dryRun ?? false,
+    Date.parse(startedAt),
+    input.pack ?? 'comments',
+  );
   const emit = (stage: ScanStage) => {
     progress.stage = stage;
     options.onEvent?.(structuredClone(progress));
@@ -334,6 +385,7 @@ export async function scan(value: unknown, options: ScanOptions): Promise<ScanRe
     const capture = await captureScope(input, options.cwd, signal);
     const bundle = createBundle(input, config, capture, progress.runId, startedAt);
     await extractFiles(bundle, capture.files, config, { signal, progress, emit, options });
+    attachSupportingFiles(bundle, capture, config);
     bundle.units.sort(
       (a, b) =>
         bundle.sources[a.sourceId]!.path.localeCompare(bundle.sources[b.sourceId]!.path, 'en') ||

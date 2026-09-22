@@ -1,5 +1,9 @@
-import type { Bundle, InferenceTarget, Unit } from './contracts.ts';
+import type { Bundle, InferenceTarget, Request, Unit } from './contracts.ts';
 import { rangeFor } from './ast.ts';
+
+export function requestTargets(request: Request) {
+  return 'targets' in request.state ? request.state.targets : request.state.comments;
+}
 
 /** Project frozen evidence into inference data without file-wide coordinates. */
 export function inferenceTarget(bundle: Bundle, unit: Unit, contextRefs: string[]): InferenceTarget {
@@ -15,6 +19,7 @@ export function inferenceTarget(bundle: Bundle, unit: Unit, contextRefs: string[
     omissions: [...unit.context.omissions],
     occurrences: unit.context.refs.flatMap((ref, i) => {
       const context = bundle.contexts[ref]!;
+      if (context.sourceId !== unit.sourceId) return [];
       const start = unit.range.startUtf16 - context.range.startUtf16;
       const end = unit.range.endUtf16 - context.range.startUtf16;
       return start >= 0 && end <= context.text.length

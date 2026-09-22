@@ -1,6 +1,12 @@
 import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
 import { Box, Text } from '@earendil-works/pi-tui';
-import { ScanInputSchema, ResultsInputSchema, type Config, type ResultsInput, type ScanInput } from './contracts.ts';
+import {
+  PackScanInputSchema,
+  ResultsInputSchema,
+  type Config,
+  type ResultsInput,
+  type ScanInput,
+} from './contracts.ts';
 import { configuration } from './config.ts';
 import { scan, type ScanResult } from './engine.ts';
 import { loadBundle } from './bundle.ts';
@@ -53,7 +59,11 @@ class JevvySession {
   }
   start(input: ScanInput, ctx: ExtensionContext, signal?: AbortSignal, update?: (p: ScanProgress) => void): ActiveRun {
     const controller = new AbortController();
-    const view = this.display.start(ctx, scopeText(input), initialProgress('starting', input.dryRun ?? false));
+    const view = this.display.start(
+      ctx,
+      scopeText(input),
+      initialProgress('starting', input.dryRun ?? false, Date.now(), input.pack),
+    );
     // A microtask makes ownership visible before the first progress callback.
     const run: ActiveRun = {
       controller,
@@ -163,16 +173,33 @@ class JevvySession {
   }
 }
 
-function registerTools(pi: ExtensionAPI, session: JevvySession): void {
-  pi.registerTool<typeof ScanInputSchema, ToolDetails>({
-    name: 'jevvy_comments',
-    label: 'Analyse comments with Jev',
+const scanTools = [
+  {
+    pack: 'comments',
+    description: 'Analyse selected source comments and their local context with fixed Jev questions.',
+  },
+  {
+    pack: 'functions',
     description:
-      'Analyse selected source comments and their local context with fixed Jev questions. Explicit scope is required. dryRun shows planned source and questions without inference. Returns a frozen bundle reference and paginated report.',
-    promptSnippet: 'Analyse comments in files, working changes or a branch comparison',
-    parameters: ScanInputSchema,
+      'Label selected functions by their visible behavior and evidence with fixed Jev questions. Unknown outcomes disclose missing context; labels are review leads, not verified defects.',
+  },
+  {
+    pack: 'tests',
+    description:
+      'Label selected tests by their visible assertions, mock boundaries and expected-value sources with fixed Jev questions. Unknown outcomes disclose missing context; labels do not establish coverage or prove correctness.',
+  },
+] as const;
+
+function registerScanTool(pi: ExtensionAPI, session: JevvySession, tool: (typeof scanTools)[number]): void {
+  const pack = tool.pack;
+  pi.registerTool<typeof PackScanInputSchema, ToolDetails>({
+    name: `jevvy_${pack}`,
+    label: `Analyse ${pack} with Jev`,
+    description: `${tool.description} Explicit scope is required. contextFiles attaches selected supporting source. dryRun shows planned source and questions without inference. Returns a frozen bundle reference and paginated report.`,
+    promptSnippet: `Analyse ${pack} in files, working changes or a branch comparison`,
+    parameters: PackScanInputSchema,
     async execute(_id, input, signal, onUpdate, ctx) {
-      const run = session.start(input, ctx, signal, p =>
+      const run = session.start({ ...input, pack }, ctx, signal, p =>
         onUpdate?.({
           content: [{ type: 'text', text: progressText(p) }],
           details: { progress: p, scope: scopeText(input) },
@@ -189,7 +216,7 @@ function registerTools(pi: ExtensionAPI, session: JevvySession): void {
     },
     renderCall(input, theme) {
       return new Text(
-        theme.fg('toolTitle', theme.bold('jevvy')) + (input.dryRun ? ' · preview comments' : ' · analyse comments'),
+        theme.fg('toolTitle', theme.bold('jevvy')) + ` · ${input.dryRun ? 'preview' : 'analyse'} ${pack}`,
         0,
         0,
       );
@@ -204,11 +231,15 @@ function registerTools(pi: ExtensionAPI, session: JevvySession): void {
       return resultComponent(contentText(result.content), d, options.expanded, theme);
     },
   });
+}
+
+function registerTools(pi: ExtensionAPI, session: JevvySession): void {
+  for (const tool of scanTools) registerScanTool(pi, session, tool);
   pi.registerTool<typeof ResultsInputSchema, ResultDetails>({
     name: 'jevvy_results',
     label: 'Retrieve jevvy results',
     description:
-      'Retrieve definitions and coverage (overview), paginated comments with native distributions (units), or exact frozen source (context). Select labels by ID; includeContext adds deduplicated frozen source to units, includeDefinitions adds selected rubrics. Sort a label with direction=asc/desc; for Choice supply outcome to sort that probability (otherwise sorts winning probability). Source order is the default. Every page discloses selection, coverage, total and cursor.',
+      'Retrieve definitions and coverage (overview), paginated source units with native distributions (units), or exact frozen source (context). Select labels by ID; includeContext adds deduplicated frozen source, includeDefinitions adds selected rubrics. Sort a label with direction=asc/desc; for Choice supply outcome to sort its probability (otherwise sorts winning probability). Optional minProbability and minConfidence filters require sort plus an explicit Choice outcome; confidence is distribution concentration, not verified accuracy. Source order is the default. Every page discloses selection, filters, coverage, total and cursor.',
     parameters: ResultsInputSchema,
     async execute(_id, input, _signal, _onUpdate, ctx) {
       return session.results(input, ctx.cwd);
@@ -238,7 +269,7 @@ export default function extension(pi: ExtensionAPI): void {
   });
   registerTools(pi, session);
   pi.registerCommand('jevvy', {
-    description: 'Analyse comments, inspect frozen results, or cancel active scans',
+    description: 'Analyse comments, functions or tests; inspect frozen results; cancel active scans',
     handler: (args, ctx) => session.command(args, ctx),
   });
   const stop = () => session.stop();

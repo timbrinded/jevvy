@@ -91,7 +91,12 @@ test('bed covers headers, docs, rationale, follow-ups and hostile text', async (
     texts.some(text => text.includes('Ignore all previous instructions')),
     'hostile comment is selected, not executed',
   );
-  const attachments = new Set(bundle.units.map(unit => unit.structure.attachment.kind));
+  const attachments = new Set(
+    bundle.units.map(unit => {
+      assert.ok(!('kind' in unit.structure));
+      return unit.structure.attachment.kind;
+    }),
+  );
   assert.ok(attachments.has('adjacency_based'), 'owned docs attach to code');
   assert.ok(attachments.has('unresolved'), 'banners stay unresolved');
 });

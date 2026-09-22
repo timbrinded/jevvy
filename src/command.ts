@@ -46,6 +46,8 @@ function parseResults(args: string[]): ResultsInput {
     else if (flag === '--sort') input.sort = next(flag);
     else if (flag === '--direction') input.direction = next(flag) as ResultsInput['direction'];
     else if (flag === '--outcome') input.outcome = next(flag);
+    else if (flag === '--min-probability') input.minProbability = Number(next(flag));
+    else if (flag === '--min-confidence') input.minConfidence = Number(next(flag));
     else if (flag === '--include-context') input.includeContext = true;
     else if (flag === '--include-definitions') input.includeDefinitions = true;
     else if (flag === '--labels') {
@@ -62,7 +64,7 @@ function parseResults(args: string[]): ResultsInput {
 export function parseCommand(
   text: string,
 ):
-  | { action: 'comments'; input: ScanInput }
+  | { action: 'comments' | 'functions' | 'tests'; input: ScanInput }
   | { action: 'results'; input: ResultsInput }
   | { action: 'inspect'; bundleId: string }
   | { action: 'cancel' } {
@@ -71,11 +73,15 @@ export function parseCommand(
   if (action === 'cancel' && !args.length) return { action: 'cancel' };
   if (action === 'inspect' && args.length === 1 && args[0]) return { action: 'inspect', bundleId: args[0] };
   if (action === 'results') return { action: 'results', input: parseResults(args) };
-  if (action !== 'comments')
+  if (action !== 'comments' && action !== 'functions' && action !== 'tests')
     throw new Error(
-      'Usage: /jevvy comments --files <paths> | --working | --base <ref> [--head <ref>] [--dry-run]; /jevvy results <bundle-id>; /jevvy inspect <bundle-id>; /jevvy cancel',
+      'Usage: /jevvy comments|functions|tests --files <paths> | --working | --base <ref> [--head <ref>] [--context-files <paths>] [--dry-run]; /jevvy results <bundle-id>; /jevvy inspect <bundle-id>; /jevvy cancel',
     );
-  const input: Partial<ScanInput> = {};
+  return { action, input: parseScanArguments(action, args) };
+}
+
+function parseScanArguments(action: 'comments' | 'functions' | 'tests', args: string[]): ScanInput {
+  const input: Partial<ScanInput> = action === 'comments' ? {} : { pack: action };
   const mode = (value: ScanInput['mode']) => {
     if (input.mode && input.mode !== value) throw new Error('Select exactly one scope mode');
     input.mode = value;
@@ -92,7 +98,10 @@ export function parseCommand(
       mode('files');
       input.files = [];
       while (args.length && !args[0]!.startsWith('--')) input.files.push(args.shift()!);
-    } else throw new Error(`Unknown comments option ${flag}`);
+    } else if (flag === '--context-files') {
+      input.contextFiles = [];
+      while (args.length && !args[0]!.startsWith('--')) input.contextFiles.push(args.shift()!);
+    } else throw new Error(`Unknown ${action} option ${flag}`);
   }
-  return { action: 'comments', input: validateInput(input) };
+  return validateInput(input);
 }

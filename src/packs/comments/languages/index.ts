@@ -35,6 +35,8 @@ const js = {
 export const rules: Record<Language, LanguageRules> = {
   typescript: js,
   tsx: js,
+  javascript: js,
+  jsx: js,
   rust: {
     comments: set('line_comment', 'block_comment'),
     callables: set('function_item', 'function_signature_item'),

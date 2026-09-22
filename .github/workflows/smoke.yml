@@ -22,6 +22,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       # Dry-run only: no TYPESAFE_API_KEY needed. Exercises extension
-      # loading, both tools, the slash command, session reload and the
+      # loading, all three packs, the slash command, session reload and the
       # 128-unit examples/comment-test.ts bed end to end.
       - run: pnpm run smoke
+      - run: pnpm run smoke:packs

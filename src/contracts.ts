@@ -8,7 +8,9 @@ const id = Type.String({ minLength: 1 });
 const count = Type.Integer({ minimum: 0 });
 const probability = Type.Number({ minimum: 0, maximum: 1 });
 const nullable = <T extends TSchema>(schema: T) => Type.Union([schema, Type.Null()]);
-export const LanguageSchema = Type.Enum(['typescript', 'tsx', 'rust', 'python', 'solidity']);
+export const PackIdSchema = Type.Enum(['comments', 'functions', 'tests']);
+export const LanguageSchema = Type.Enum(['typescript', 'tsx', 'javascript', 'jsx', 'rust', 'python', 'solidity']);
+const SourceLanguageSchema = Type.Union([LanguageSchema, Type.Enum(['json', 'text'])]);
 export const RangeSchema = object({
   startUtf16: count,
   endUtf16: count,
@@ -20,7 +22,8 @@ export const DefinitionSchema = object({
   primitive: Type.Enum(['noul', 'choice', 'score']),
   question: id,
   criteria: Type.Union([dictionary(text), Type.Array(text, { minItems: 2, maxItems: 10 })]),
-  requires: Type.Enum(['text', 'local_context', 'complete_local']),
+  requires: Type.Enum(['text', 'local_context', 'complete_local', 'complete_target']),
+  source: Type.Optional(object({ url: id, directives: Type.Array(Type.Integer({ minimum: 1, maximum: 15 })) })),
 });
 export const QuestionSchema = Type.Union([
   object({ type: Type.Literal('noul'), instructions: id, criteria: object({ true: text, false: text }) }),
@@ -47,22 +50,31 @@ export const SourceSchema = object({
   snapshot: Type.Enum(['before', 'captured']),
   contentHash: id,
   encoding: Type.Literal('utf-8'),
-  language: LanguageSchema,
+  language: SourceLanguageSchema,
   content: text,
 });
 export const ContextSchema = object({
   sourceId: id,
   range: RangeSchema,
-  role: Type.Enum(['owner', 'header', 'surroundings']),
+  role: Type.Enum(['owner', 'header', 'surroundings', 'supporting_file']),
   text,
 });
-export const StructureSchema = object({
+const OwnerSchema = object({ kind: id, name: nullable(text), range: RangeSchema });
+export const CommentStructureSchema = object({
   syntax: Type.Enum(['line', 'block', 'string_literal', 'doc_attribute', 'unknown']),
   documentationStyle: Type.Enum(['jsdoc', 'rustdoc', 'python_docstring', 'natspec', 'none', 'unknown']),
   tags: Type.Array(text),
-  owner: nullable(object({ kind: id, name: nullable(text), range: RangeSchema })),
+  owner: nullable(OwnerSchema),
   attachment: object({ kind: Type.Enum(['syntactic', 'adjacency_based', 'unresolved']), evidence: id }),
 });
+export const CodeStructureSchema = object({
+  kind: Type.Enum(['function', 'test']),
+  syntax: id,
+  name: nullable(text),
+  owner: nullable(OwnerSchema),
+  framework: nullable(text),
+});
+export const StructureSchema = Type.Union([CommentStructureSchema, CodeStructureSchema]);
 export const UnitSchema = object({
   id,
   sourceId: id,
@@ -83,14 +95,17 @@ export const LegacyRequestSchema = object({
   state: object({
     instruction: id,
     contexts: dictionary(object({ text, role: text })),
-    comments: dictionary(object({ text, structure: StructureSchema, contextRefs: Type.Array(id) })),
+    comments: dictionary(object({ text, structure: CommentStructureSchema, contextRefs: Type.Array(id) })),
   }),
   questions: dictionary(QuestionSchema),
 });
 export const InferenceTargetSchema = object({
   text,
-  language: LanguageSchema,
-  structure: object({ ...StructureSchema.properties, owner: nullable(object({ kind: id, name: nullable(text) })) }),
+  language: SourceLanguageSchema,
+  structure: Type.Union([
+    object({ ...CommentStructureSchema.properties, owner: nullable(object({ kind: id, name: nullable(text) })) }),
+    object({ ...CodeStructureSchema.properties, owner: nullable(object({ kind: id, name: nullable(text) })) }),
+  ]),
   contextRefs: Type.Array(id),
   contextStatus: UnitSchema.properties.context.properties.status,
   omissions: Type.Array(id),
@@ -106,7 +121,18 @@ export const CurrentRequestSchema = object({
   }),
   questions: dictionary(QuestionSchema),
 });
-export const RequestSchema = Type.Union([LegacyRequestSchema, CurrentRequestSchema]);
+export const CodeRequestSchema = object({
+  model: id,
+  state: object({
+    formatVersion: Type.Literal('3'),
+    packId: Type.Enum(['functions', 'tests']),
+    instruction: id,
+    contexts: dictionary(object({ text, role: text, path: id })),
+    targets: dictionary(InferenceTargetSchema),
+  }),
+  questions: dictionary(QuestionSchema),
+});
+export const RequestSchema = Type.Union([LegacyRequestSchema, CurrentRequestSchema, CodeRequestSchema]);
 export const BindingSchema = object({ unitId: id, labelId: id, targetId: id, contextRefs: Type.Array(id) });
 export const UsageSchema = object({ input_tokens: count, output_tokens: count });
 export const ExecutionSchema = object({
@@ -127,11 +153,11 @@ export const FileOutcomeSchema = object({
 });
 export const BundleSchema = Type.Object(
   {
-    schemaVersion: Type.Enum(['1.0.0', '1.1.0']),
-    kind: Type.Literal('jevvy.comments.bundle'),
+    schemaVersion: Type.Enum(['1.0.0', '1.1.0', '2.0.0']),
+    kind: Type.Enum(['jevvy.comments.bundle', 'jevvy.functions.bundle', 'jevvy.tests.bundle']),
     bundleId: id,
     producer: object({ name: Type.Literal('jevvy'), version: id }),
-    pack: object({ id: Type.Literal('comments'), version: id, definitionHash: id }),
+    pack: object({ id: PackIdSchema, version: id, definitionHash: id }),
     extraction: object({ version: id, napiVersion: id, grammars: dictionary(id) }),
     run: object({
       mode: Type.Enum(['live', 'dry_run', 'example']),
@@ -140,6 +166,7 @@ export const BundleSchema = Type.Object(
         mode: Type.Enum(['files', 'working', 'branch']),
         root: id,
         files: Type.Array(id),
+        contextFiles: Type.Optional(Type.Array(id)),
         base: nullable(id),
         head: nullable(id),
         mergeBase: nullable(id),
@@ -167,18 +194,23 @@ export const BundleSchema = Type.Object(
   },
   {
     additionalProperties: false,
-    $id: 'https://jevvy.dev/schemas/comments-bundle-1.1.0.json',
+    $id: 'https://jevvy.dev/schemas/bundle-2.0.0.json',
     $schema: 'https://json-schema.org/draft/2020-12/schema',
   },
 );
 
 // Tool enums are plain JSON Schema enums, compatible with provider tool schemas.
-export const ScanInputSchema = object({
+export const PackScanInputSchema = object({
   mode: StringEnum(['files', 'working', 'branch'] as const),
   files: Type.Optional(Type.Array(id, { minItems: 1 })),
   base: Type.Optional(id),
   head: Type.Optional(id),
   dryRun: Type.Optional(Type.Boolean()),
+  contextFiles: Type.Optional(Type.Array(id, { minItems: 1 })),
+});
+export const ScanInputSchema = object({
+  ...PackScanInputSchema.properties,
+  pack: Type.Optional(StringEnum(['comments', 'functions', 'tests'] as const)),
 });
 export const ResultsInputSchema = object({
   bundleId: id,
@@ -192,6 +224,8 @@ export const ResultsInputSchema = object({
   outcome: Type.Optional(id),
   includeContext: Type.Optional(Type.Boolean()),
   includeDefinitions: Type.Optional(Type.Boolean()),
+  minProbability: Type.Optional(probability),
+  minConfidence: Type.Optional(probability),
 });
 export const ConfigSchema = object({
   model: id,
@@ -206,6 +240,7 @@ export const ConfigSchema = object({
   storageDir: id,
 });
 export type Language = Type.Static<typeof LanguageSchema>;
+export type PackId = Type.Static<typeof PackIdSchema>;
 export type Range = Type.Static<typeof RangeSchema>;
 export type Definition = Type.Static<typeof DefinitionSchema>;
 export type Answer = Type.Static<typeof AnswerSchema>;
@@ -215,6 +250,10 @@ export type Source = Type.Static<typeof SourceSchema>;
 export type Context = Type.Static<typeof ContextSchema>;
 export type Unit = Type.Static<typeof UnitSchema>;
 export type Structure = Type.Static<typeof StructureSchema>;
+export type CommentStructure = Type.Static<typeof CommentStructureSchema>;
+export type CodeStructure = Type.Static<typeof CodeStructureSchema>;
+export type CommentUnit = Omit<Unit, 'structure'> & { structure: CommentStructure };
+export type CodeUnit = Omit<Unit, 'structure'> & { structure: CodeStructure };
 export type Request = Type.Static<typeof RequestSchema>;
 export type Execution = Type.Static<typeof ExecutionSchema>;
 export type Bundle = Type.Static<typeof BundleSchema>;
@@ -223,4 +262,5 @@ export type ResultsInput = Type.Static<typeof ResultsInputSchema>;
 export type Config = Type.Static<typeof ConfigSchema>;
 
 export type CurrentRequest = Type.Static<typeof CurrentRequestSchema>;
+export type CodeRequest = Type.Static<typeof CodeRequestSchema>;
 export type InferenceTarget = Type.Static<typeof InferenceTargetSchema>;

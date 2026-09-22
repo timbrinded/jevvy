@@ -1,10 +1,10 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { lstat, readFile, realpath, mkdtemp, writeFile, rm } from 'node:fs/promises';
-import { resolve, relative, isAbsolute, join, sep } from 'node:path';
+import { resolve, relative, isAbsolute, join, sep, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { languageFor } from './ast.ts';
-import type { Bundle, Language, Range, ScanInput } from './contracts.ts';
+import type { Bundle, Language, Range, ScanInput, Source } from './contracts.ts';
 
 const exec = promisify(execFile);
 export async function git(root: string, args: string[]): Promise<string> {
@@ -31,6 +31,7 @@ export interface Capture {
   files: CapturedFile[];
   outcomes: Bundle['coverage']['files'];
   diagnostics: string[];
+  supporting: { path: string; language: Source['language']; content: string }[];
 }
 
 async function captureText(root: string, path: string): Promise<string | null> {
@@ -182,7 +183,7 @@ export async function captureScope(input: ScanInput, cwd: string, signal?: Abort
   const scope = await resolveScope(input, cwd);
   const { root, head, mergeBase } = scope;
   const candidates = await scopeCandidates(input, scope);
-  const result: Capture = { scope, files: [], outcomes: [], diagnostics: [] };
+  const result: Capture = { scope, files: [], outcomes: [], diagnostics: [], supporting: [] };
   const unique = new Map(candidates.map(c => [c.path, c]));
   scope.files = [...unique.keys()].sort();
   for (const candidate of [...unique.values()].sort((a, b) => a.path.localeCompare(b.path, 'en'))) {
@@ -193,7 +194,7 @@ export async function captureScope(input: ScanInput, cwd: string, signal?: Abort
     }
     const language = languageFor(path) ?? languageFor(oldPath);
     if (!language) {
-      result.outcomes.push({ path, status: 'unsupported', reason: 'No comments adapter for this extension' });
+      result.outcomes.push({ path, status: 'unsupported', reason: 'No source adapter for this extension' });
       continue;
     }
     try {
@@ -209,5 +210,42 @@ export async function captureScope(input: ScanInput, cwd: string, signal?: Abort
       result.diagnostics.push(`${path}: ${reason}`);
     }
   }
+  await captureSupportingFiles(input, result, signal);
   return result;
+}
+
+async function captureSupportingFiles(input: ScanInput, result: Capture, signal?: AbortSignal): Promise<void> {
+  const { scope } = result;
+  const { root, head } = scope;
+  if (input.contextFiles?.length) {
+    scope.contextFiles = [
+      ...new Set(input.contextFiles.map(path => relative(root, resolve(root, path)).split(sep).join('/'))),
+    ].sort();
+    for (const path of scope.contextFiles) {
+      if (signal?.aborted) {
+        result.outcomes.push({ path, status: 'cancelled', reason: 'Supporting-file capture cancelled' });
+        continue;
+      }
+      try {
+        if (path === '..' || path.startsWith('../') || isAbsolute(path) || path.split('/').includes('.git'))
+          throw new Error('Supporting path is outside source scope');
+        const selected = result.files.find(file => file.path === path);
+        const content = selected
+          ? selected.content
+          : input.mode === 'branch'
+            ? await blob(root, head!, path)
+            : await captureText(root, path);
+        if (content === null) throw new Error('Supporting file does not exist in selected snapshot');
+        result.supporting.push({
+          path,
+          content,
+          language: languageFor(path) ?? (extname(path).toLowerCase() === '.json' ? 'json' : 'text'),
+        });
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        result.outcomes.push({ path, status: 'unreadable', reason });
+        result.diagnostics.push(`${path}: ${reason}`);
+      }
+    }
+  }
 }

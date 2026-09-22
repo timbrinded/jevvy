@@ -4,6 +4,7 @@ export interface ScanProgress {
   startedAt: number;
   stage: ScanStage;
   dryRun: boolean;
+  pack?: 'comments' | 'functions' | 'tests';
   file?: string;
   files: { completed: number; total: number };
   comments: number;
@@ -19,12 +20,18 @@ export interface ScanProgress {
   };
 }
 
-export function initialProgress(runId: string, dryRun: boolean, startedAt = Date.now()): ScanProgress {
+export function initialProgress(
+  runId: string,
+  dryRun: boolean,
+  startedAt = Date.now(),
+  pack?: ScanProgress['pack'],
+): ScanProgress {
   return {
     runId,
     startedAt,
     stage: 'capture',
     dryRun,
+    ...(pack ? { pack } : {}),
     files: { completed: 0, total: 0 },
     comments: 0,
     packets: { total: 0, completed: 0, active: 0, ok: 0, partial: 0, error: 0, cancelled: 0, cached: 0 },
@@ -32,15 +39,16 @@ export function initialProgress(runId: string, dryRun: boolean, startedAt = Date
 }
 
 export function progressText(p: ScanProgress): string {
+  const units = p.pack ?? 'comments';
   switch (p.stage) {
     case 'capture':
       return 'Capturing source';
     case 'extract':
-      return `Extracting comments · ${p.files.completed}/${p.files.total} files`;
+      return `Extracting ${units} · ${p.files.completed}/${p.files.total} files`;
     case 'plan':
-      return `${p.comments} comments · ${p.packets.total} packets planned`;
+      return `${p.comments} ${units} · ${p.packets.total} packets planned`;
     case 'analyse':
-      return `Analysing comments · ${p.packets.completed}/${p.packets.total} packets · ${p.packets.active} active`;
+      return `Analysing ${units} · ${p.packets.completed}/${p.packets.total} packets · ${p.packets.active} active`;
     case 'persist':
       return 'Saving results';
     case 'complete':
