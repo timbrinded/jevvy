@@ -46,7 +46,7 @@ test('schema serialisation preserves shape checking and has a stable dialect/id'
   t.after(f.cleanup);
   const r = await scan({ mode: 'files', files: ['one.ts'], dryRun: true }, { cwd: f.root, persist: false });
   const serialised = JSON.parse(JSON.stringify(BundleSchema));
-  assert.match(serialised.$id, /1\.1\.0/);
+  assert.match(serialised.$id, /2\.0\.0/);
   assert.match(serialised.$schema, /2020-12/);
   const check = Compile(serialised);
   assert.ok(check.Check(r.bundle));
@@ -77,6 +77,7 @@ test('semantic checks reject valid-shaped misrouting, wrong coverage and evidenc
   });
   mutate(b => {
     const e = Object.values(b.executions)[0]!;
+    assert.ok('comments' in e.request.state);
     e.request.state.comments.comment_0!.text = 'injected';
     e.requestHash = hash(e.request);
   });

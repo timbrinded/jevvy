@@ -97,7 +97,10 @@ export class ResultInspector implements Component {
     this.maxScroll = Math.max(0, wrapped.length - bodyHeight);
     this.scroll = Math.max(0, Math.min(this.scroll, this.maxScroll));
     const title =
-      this.theme.fg('accent', this.theme.bold(`jevvy · ${this.view} · page ${this.cursors.length}`)) +
+      this.theme.fg(
+        'accent',
+        this.theme.bold(`jevvy ${this.bundle.pack.id} · ${this.view} · page ${this.cursors.length}`),
+      ) +
       this.theme.fg(
         'dim',
         ` · ${this.bundle.run.mode === 'dry_run' ? 'preview' : this.bundle.run.status} · lines ${this.scroll + 1}–${Math.min(this.scroll + bodyHeight, wrapped.length)}/${wrapped.length}`,
@@ -105,7 +108,7 @@ export class ResultInspector implements Component {
     const hint =
       width < 60
         ? `${this.cancelLabel} close · Tab view · ←→ page · ↑↓ scroll`
-        : `${this.cancelLabel} close · Tab: comments / source / definitions · ←→ page · ↑↓ / PgUp/PgDn scroll`;
+        : `${this.cancelLabel} close · Tab: ${this.bundle.pack.id} / source / definitions · ←→ page · ↑↓ / PgUp/PgDn scroll`;
     const border = (s: string) => this.theme.fg('borderMuted', s);
     const row = (s: string) => {
       const clipped = truncateToWidth(s, innerWidth);

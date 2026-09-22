@@ -25,7 +25,9 @@ test('explicit dry-run plans every label, validates, persists and reloads unchan
   );
   assert.equal(r.bundle.units.length, 1);
   assert.equal(r.bundle.coverage.labels.not_evaluated, 14);
-  assert.equal(Object.values(r.bundle.executions)[0]!.request.state.comments.comment_0!.text, '/** Returns one. */');
+  const request = Object.values(r.bundle.executions)[0]!.request;
+  assert.ok('comments' in request.state);
+  assert.equal(request.state.comments.comment_0!.text, '/** Returns one. */');
   assert.deepEqual(await loadBundle(f.storageDir, r.bundle.bundleId), r.bundle);
   await assert.rejects(saveBundle(r.bundle, configuration({ storageDir: f.storageDir })), /EEXIST/);
 });

@@ -1,13 +1,15 @@
 # jevvy
 
 jevvy is a [Pi](https://github.com/earendil-works/pi) extension that uses
-[Jev](https://docs.typesafe.ai/) to review code comments. It assesses what comments
-explain, how clearly they communicate, and whether nearby code supports their
-claims. Pi receives the results with their source evidence and decides what to
-improve. Jevvy scans leave source files unchanged.
+[Jev](https://docs.typesafe.ai/) to review comments, functions and tests. Each pack
+asks fixed questions and returns the answers with their source evidence. Pi can
+inspect that evidence before recommending changes. Jevvy scans leave source files
+unchanged.
 
-The comments pack supports TypeScript/TSX, Rust, Python and Solidity, including
-documentation comments and Python docstrings.
+Source parsing supports JavaScript/JSX, TypeScript/TSX, Rust, Python and Solidity.
+The Functions and Tests packs adapt [Kiln Code Savers](docs/packs.md#source-and-license)
+rubrics for unnecessary complexity and tests of application-owned behavior.
+They also include narrow checks developed through live Jev experiments.
 
 ![Comments and local code are sent to Jev for assessment, then saved as source-linked results for Pi.](docs/images/how-it-works.svg)
 
@@ -51,13 +53,27 @@ Diff scans include unchanged comments attached to changed code. A clean working
 tree has no changes to review; use `--files` to scan existing files. Add
 `--dry-run` to any scan to preview it, or use `/jevvy cancel` to stop a running scan.
 
+## Scan functions and tests
+
+```text
+/jevvy functions --files src/orders.ts
+/jevvy tests --files test/orders.test.ts --context-files src/orders.ts package.json
+```
+
+Both packs also support `--working`, `--base <ref> [--head <ref>]`, and `--dry-run`.
+Supporting files are explicit: include the relevant implementation, manifest and
+contract so a test can be assessed against the behavior it protects. They are
+captured from the selected snapshot and subject to the context budget. Missing
+evidence remains visible; Jevvy does not infer a complete call graph or test suite.
+See [pack rubrics and limits](docs/packs.md).
+
 ## Read results
 
 Each scan saves a **bundle** containing the assessments and the source used to
 make them. The result card shows coverage, errors and the bundle ID. Completed
 answers remain available after cancellation or failures in other requests.
 
-Open the inspector to browse comments, saved source and question definitions:
+Open the inspector to browse selected units, saved source and question definitions:
 
 ```text
 /jevvy inspect <bundle-id>
@@ -73,14 +89,25 @@ Retrieve an overview or a page of comments:
 /jevvy results <bundle-id> --view units --limit 5
 ```
 
-Pi can also scan and retrieve results through the `jevvy_comments` and
-`jevvy_results` tools. Reading saved results makes no API calls. See the
+Pi can also use `jevvy_comments`, `jevvy_functions`, `jevvy_tests`, and
+`jevvy_results`. Reading saved results makes no API calls. See the
 [sample report](examples/jevvy-results.example.md) for the output format; its
 values are synthetic.
 
+For a code-pack result, select a question and rank its `issue` outcome:
+
+```text
+/jevvy results <bundle-id> --view units --labels owned_behavior --sort owned_behavior --outcome issue --min-probability 0.8 --min-confidence 0.7 --include-context --include-definitions
+```
+
+Those cutoffs are example review settings, not calibrated accuracy guarantees.
+Filters operate on saved answers. The full distributions, unknown outcomes and
+unfiltered results remain available. A scan that raises no candidate does not
+establish that the code or tests are correct.
+
 ## Data and settings
 
-Live scans send selected comments and their code context to TypeSafe. Context
+Live scans send selected units and their bound context to TypeSafe. Context
 can include an entire small file. Reports and retrieved code enter Pi's model
 conversation. Bundles store full captured files locally so results retain the
 source as it was when scanned.
@@ -114,5 +141,6 @@ integration. Neither makes paid API calls. Use `pnpm run smoke:live` with
 The last command registers the checkout as a local Pi package. Restart Pi after
 source edits.
 
+- [Functions and Tests](docs/packs.md): rubrics, evidence requirements and Kiln attribution.
 - [Verification](docs/verification.md): test coverage and detailed checks.
 - [Bundle contract](docs/contracts.md): schemas, validation and retrieval rules.

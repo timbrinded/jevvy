@@ -17,8 +17,8 @@ import {
   type Context,
 } from './contracts.ts';
 import { canonical, hash } from './hash.ts';
-import { inferenceTarget } from './request.ts';
-import { questionFor } from './packs/comments/questions.ts';
+import { inferenceTarget, requestTargets } from './request.ts';
+import { hasRequiredContext, questionFor } from './packs/questions.ts';
 
 export const validators = {
   answer: Compile(AnswerSchema),
@@ -144,8 +144,26 @@ function validateSources(b: Bundle): Map<string, Unit> {
   const units = new Map(b.units.map(u => [u.id, u]));
   if (units.size !== b.units.length) fail('duplicate unit ID');
   for (const u of b.units) {
-    if (!b.sources[u.sourceId] || u.context.refs.some(ref => b.contexts[ref]?.sourceId !== u.sourceId))
-      fail('unit context reference');
+    if (!b.sources[u.sourceId]) fail('unit source reference');
+    if (
+      b.pack.id === 'comments'
+        ? 'kind' in u.structure
+        : !('kind' in u.structure) || u.structure.kind !== (b.pack.id === 'functions' ? 'function' : 'test')
+    )
+      fail('unit structure differs from pack');
+    for (const ref of u.context.refs) {
+      const context = b.contexts[ref];
+      if (!context) fail('unit context reference');
+      if (
+        context.sourceId !== u.sourceId &&
+        (b.schemaVersion !== '2.0.0' ||
+          context.role !== 'supporting_file' ||
+          !b.run.scope.contextFiles?.includes(b.sources[context.sourceId]!.path))
+      )
+        fail('cross-file evidence was not explicitly selected');
+      if (b.sources[context.sourceId]!.snapshot !== b.sources[u.sourceId]!.snapshot)
+        fail('context snapshot differs from target');
+    }
   }
   return units;
 }
@@ -153,7 +171,7 @@ function validateSources(b: Bundle): Map<string, Unit> {
 function validateTarget(b: Bundle, e: Execution, binding: Execution['bindings'][string], unit: Unit): string[] {
   const currentRequest = 'formatVersion' in e.request.state;
   if (canonical(binding.contextRefs) !== canonical(unit.context.refs)) fail('binding context differs from unit');
-  const target = e.request.state.comments[binding.targetId] ?? fail('missing request target');
+  const target = requestTargets(e.request)[binding.targetId] ?? fail('missing request target');
   const expectedTarget = currentRequest
     ? inferenceTarget(b, unit, target.contextRefs)
     : { text: unit.text, structure: unit.structure, contextRefs: target.contextRefs };
@@ -164,6 +182,8 @@ function validateTarget(b: Bundle, e: Execution, binding: Execution['bindings'][
     const frozen = b.contexts[binding.contextRefs[i]!];
     if (!sent || !frozen || sent.text !== frozen.text || sent.role !== frozen.role)
       fail('request evidence differs from frozen context');
+    if ('targets' in e.request.state && (!('path' in sent) || sent.path !== b.sources[frozen.sourceId]!.path))
+      fail('request supporting path differs from frozen source');
   }
   return target.contextRefs;
 }
@@ -185,7 +205,12 @@ function validateBindings(
     if (
       canonical(e.request.questions[questionId]) !==
       canonical(
-        questionFor(b.definitions[binding.labelId]!, binding.targetId, currentRequest ? contextRefs : undefined),
+        questionFor(
+          b.definitions[binding.labelId]!,
+          binding.targetId,
+          currentRequest ? contextRefs : undefined,
+          'targets' in e.request.state,
+        ),
       )
     )
       fail('request question differs from bound label definition');
@@ -194,11 +219,7 @@ function validateBindings(
       if (label.packetId !== packetId) fail('label routed to wrong packet');
       const error = answerError(label.answer, e.request.questions[questionId]!);
       if (error) fail(error);
-      const requires = b.definitions[binding.labelId]!.requires;
-      if (
-        (requires === 'complete_local' && unit!.context.status !== 'complete_local') ||
-        (requires === 'local_context' && !unit!.context.refs.length)
-      )
+      if (!hasRequiredContext(b, unit!, b.definitions[binding.labelId]!))
         fail('evaluated label without required context');
     }
   }
@@ -207,14 +228,16 @@ function validateBindings(
 function validateExecutions(b: Bundle, units: Map<string, Unit>): Set<string> {
   const bound = new Set<string>();
   for (const [packetId, e] of Object.entries(b.executions)) {
-    const currentRequest = 'formatVersion' in e.request.state;
-    if (currentRequest !== (b.schemaVersion === '1.1.0')) fail('request format differs from bundle version');
+    const format = 'formatVersion' in e.request.state ? e.request.state.formatVersion : '1';
+    const expected = b.schemaVersion === '1.0.0' ? '1' : b.pack.id === 'comments' ? '2' : '3';
+    if (format !== expected) fail('request format differs from bundle version');
+    if ('packId' in e.request.state && e.request.state.packId !== b.pack.id) fail('request pack differs from bundle');
     if (requestHash(e.request) !== e.requestHash || !sameKeys(e.bindings, e.request.questions))
       fail('request hash or manifest mismatch');
     const targets = new Set(Object.values(e.bindings).map(binding => binding.targetId));
-    if (canonical([...targets].sort()) !== canonical(Object.keys(e.request.state.comments).sort()))
+    if (canonical([...targets].sort()) !== canonical(Object.keys(requestTargets(e.request)).sort()))
       fail('unbound request target');
-    const contextKeys = new Set(Object.values(e.request.state.comments).flatMap(target => target.contextRefs));
+    const contextKeys = new Set(Object.values(requestTargets(e.request)).flatMap(target => target.contextRefs));
     if (canonical([...contextKeys].sort()) !== canonical(Object.keys(e.request.state.contexts).sort()))
       fail('unreferenced request context');
     validateBindings(b, e, packetId, { units, bound });
@@ -238,7 +261,6 @@ function validateUnitLabels(b: Bundle, bound: Set<string>): Bundle['coverage']['
   for (const u of b.units) {
     validateExcerpt(b, u);
     if (!sameKeys(u.labels, b.definitions)) fail('unit label completeness');
-    if (u.context.refs.some(ref => b.contexts[ref]?.sourceId !== u.sourceId)) fail('unit context reference');
     if (u.context.status === 'complete_local' && (!u.context.refs.length || u.context.omissions.length))
       fail('incomplete local context');
     for (const [labelId, l] of Object.entries(u.labels)) {
@@ -278,6 +300,8 @@ export function validateBundle(value: unknown): Bundle {
   if (!validators.bundle.Check(value))
     throw new Error(`Invalid bundle shape: ${JSON.stringify(validators.bundle.Errors(value)).slice(0, 1500)}`);
   const b = value;
+  if (b.kind !== `jevvy.${b.pack.id}.bundle`) fail('bundle kind differs from pack');
+  if (b.schemaVersion !== '2.0.0' && b.pack.id !== 'comments') fail('legacy bundle cannot contain a code pack');
   if (hash(b.definitions) !== b.pack.definitionHash) fail('definition hash');
   const units = validateSources(b);
   const bound = validateExecutions(b, units);

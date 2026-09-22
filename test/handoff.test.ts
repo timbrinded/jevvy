@@ -113,7 +113,7 @@ test('inference identifies repeated occurrences and reuses answers after a locat
   };
   const a = (await scan({ mode: 'files', files: ['one.ts'] }, options)).bundle;
   const request = Object.values(a.executions)[0]!.request;
-  assert.ok('formatVersion' in request.state);
+  assert.ok('formatVersion' in request.state && request.state.formatVersion === '2');
   const targets = Object.values(request.state.comments);
   assert.notDeepEqual(targets[0]!.occurrences, targets[1]!.occurrences);
   for (const target of targets) {
@@ -159,7 +159,7 @@ test('current targets reject substituted language, omission and occurrence metad
   for (const field of ['language', 'omissions', 'occurrences'] as const) {
     const b = structuredClone(bundle),
       e = Object.values(b.executions)[0]!;
-    assert.ok('formatVersion' in e.request.state);
+    assert.ok('formatVersion' in e.request.state && e.request.state.formatVersion === '2');
     const target = e.request.state.comments.comment_0!;
     if (field === 'language') target.language = 'rust';
     else if (field === 'omissions') target.omissions = ['invented'];
@@ -213,6 +213,7 @@ test('Choice outcome sorting, stable ties, missing measurements, and cursor quer
       persist: false,
       config: { storageDir: f.storageDir },
       transport: async request => {
+        assert.ok('comments' in request.state);
         const response = syntheticResponse(request);
         const index = Number(Object.values(request.state.comments)[0]!.text.slice(-1));
         for (const [id, question] of Object.entries(request.questions))

@@ -5,13 +5,15 @@ import { fileURLToPath } from 'node:url';
 import { extname } from 'node:path';
 import type { Language, Range } from './contracts.ts';
 
-export const EXTRACTION_VERSION = '1.0.4';
+export const EXTRACTION_VERSION = '2.0.0';
 export const extractionMetadata = {
   version: EXTRACTION_VERSION,
   napiVersion: '0.45.3',
   grammars: {
     typescript: '@ast-grep/napi@0.45.3',
     tsx: '@ast-grep/napi@0.45.3',
+    javascript: '@ast-grep/napi@0.45.3',
+    jsx: '@ast-grep/napi@0.45.3',
     python: '@ast-grep/lang-python@0.0.6',
     rust: '@ast-grep/lang-rust@0.0.7',
     solidity: 'tree-sitter-solidity@1.2.13',
@@ -20,6 +22,8 @@ export const extractionMetadata = {
 const grammarNames: Record<Language, string> = {
   typescript: 'TypeScript',
   tsx: 'Tsx',
+  javascript: 'JavaScript',
+  jsx: 'JavaScript',
   python: 'python',
   rust: 'rust',
   solidity: 'solidity',
@@ -61,6 +65,10 @@ export function languageFor(path: string): Language | undefined {
       '.mts': 'typescript',
       '.cts': 'typescript',
       '.tsx': 'tsx',
+      '.js': 'javascript',
+      '.mjs': 'javascript',
+      '.cjs': 'javascript',
+      '.jsx': 'jsx',
       '.rs': 'rust',
       '.py': 'python',
       '.sol': 'solidity',

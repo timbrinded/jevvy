@@ -37,6 +37,7 @@ try {
   await cp(join(workspace, 'fixtures'), join(host, 'fixtures'), { recursive: true });
   await cp(join(workspace, 'examples'), join(host, 'examples'), { recursive: true });
   await cp(join(workspace, 'scripts/pi-check.mjs'), join(host, 'pi-check.mjs'));
+  await cp(join(workspace, 'scripts/pi-packs-check.mjs'), join(host, 'pi-packs-check.mjs'));
   const pnpmOptions = [
     '--prod',
     '--store-dir',
@@ -77,6 +78,7 @@ try {
     JSON.parse(await readFile(settingsPath, 'utf8')).packages.some(source => resolve(agentDir, source) === packageRoot),
   );
   await run(process.execPath, ['pi-check.mjs']);
+  await run(process.execPath, ['pi-packs-check.mjs']);
   await run(process.execPath, [piCli, 'remove', packageRoot]);
   assert.deepEqual(JSON.parse(await readFile(settingsPath, 'utf8')).packages, []);
   console.log(

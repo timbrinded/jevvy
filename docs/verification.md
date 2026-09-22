@@ -1,5 +1,10 @@
 # Verification evidence
 
+The 22 September 2026 [Functions and Tests verification](packs-verification.md)
+records the modular code packs, live Jev experiments, interactive Pi/tmux checks,
+and updated clean-install checks. Earlier release and platform results below are
+retained as historical evidence.
+
 The [handoff verification](handoff-verification.md) records 80 passing tests
 on macOS and Linux ARM64, live inference, selective retrieval, old-bundle compatibility
 and an expanded Pi review comparison. The initial results below remain historical evidence.

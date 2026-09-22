@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "2.0.0",
   "kind": "jevvy.comments.bundle",
   "bundleId": "bundle_00000000-0000-4000-8000-000000000001",
   "producer": {
@@ -12,11 +12,13 @@
     "definitionHash": "347cb1fa58c5b4ad2c958e434c9537b4ac949147bff9e94defc9574c8b9143f2"
   },
   "extraction": {
-    "version": "1.0.4",
+    "version": "2.0.0",
     "napiVersion": "0.45.3",
     "grammars": {
       "typescript": "@ast-grep/napi@0.45.3",
       "tsx": "@ast-grep/napi@0.45.3",
+      "javascript": "@ast-grep/napi@0.45.3",
+      "jsx": "@ast-grep/napi@0.45.3",
       "python": "@ast-grep/lang-python@0.0.6",
       "rust": "@ast-grep/lang-rust@0.0.7",
       "solidity": "tree-sitter-solidity@1.2.13"
@@ -35,7 +37,7 @@
       "head": null,
       "mergeBase": null
     },
-    "snapshotId": "snapshot_32e481deaa059d3ab2274826",
+    "snapshotId": "snapshot_2c96017cafda3357e02dd25e",
     "requestedModel": "jev-1.13.0",
     "resolvedModel": null,
     "startedAt": "2026-09-21T00:00:00.000Z",
@@ -216,7 +218,7 @@
   },
   "units": [
     {
-      "id": "unit_0af1f334248bb6555adeba5f",
+      "id": "unit_cf791a1e14df2da057c6e73c",
       "sourceId": "source_69e77d9f773566ec6dc6cbf5",
       "range": {
         "startUtf16": 0,
@@ -255,7 +257,7 @@
       "labels": {
         "serves_api_documentation": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -263,7 +265,7 @@
         },
         "describes_behaviour": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -271,7 +273,7 @@
         },
         "explains_rationale": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.03
@@ -279,7 +281,7 @@
         },
         "describes_non_obvious_behaviour": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -287,7 +289,7 @@
         },
         "documents_workaround": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -295,7 +297,7 @@
         },
         "states_constraint": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -303,7 +305,7 @@
         },
         "warns_about_pitfall": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -311,7 +313,7 @@
         },
         "tracks_follow_up": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -319,7 +321,7 @@
         },
         "writing_clarity": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "score",
             "score": 3,
@@ -340,7 +342,7 @@
         },
         "specificity": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "score",
             "score": 3,
@@ -361,7 +363,7 @@
         },
         "reader_value": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "score",
             "score": 3,
@@ -382,7 +384,7 @@
         },
         "restates_visible_code": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -390,7 +392,7 @@
         },
         "materially_ambiguous": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -398,7 +400,7 @@
         },
         "local_consistency": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "choice",
             "choice": "contradicted",
@@ -414,7 +416,7 @@
       }
     },
     {
-      "id": "unit_4318f8451d065b60bcaf8bef",
+      "id": "unit_6b285130d57ea7c67a70095f",
       "sourceId": "source_69e77d9f773566ec6dc6cbf5",
       "range": {
         "startUtf16": 119,
@@ -453,7 +455,7 @@
       "labels": {
         "serves_api_documentation": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -461,7 +463,7 @@
         },
         "describes_behaviour": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -469,7 +471,7 @@
         },
         "explains_rationale": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.98
@@ -477,7 +479,7 @@
         },
         "describes_non_obvious_behaviour": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -485,7 +487,7 @@
         },
         "documents_workaround": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -493,7 +495,7 @@
         },
         "states_constraint": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -501,7 +503,7 @@
         },
         "warns_about_pitfall": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -509,7 +511,7 @@
         },
         "tracks_follow_up": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -517,7 +519,7 @@
         },
         "writing_clarity": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "score",
             "score": 3,
@@ -538,7 +540,7 @@
         },
         "specificity": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "score",
             "score": 3,
@@ -559,7 +561,7 @@
         },
         "reader_value": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "score",
             "score": 3,
@@ -580,7 +582,7 @@
         },
         "restates_visible_code": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -588,7 +590,7 @@
         },
         "materially_ambiguous": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "noul",
             "noul": 0.5
@@ -596,7 +598,7 @@
         },
         "local_consistency": {
           "status": "ok",
-          "packetId": "packet_b134d8299c93c8edf40a9a6c",
+          "packetId": "packet_752ec19e64ebbe99825132c9",
           "answer": {
             "type": "choice",
             "choice": "insufficient_evidence",
@@ -615,7 +617,7 @@
   "excluded": [],
   "removed": [],
   "executions": {
-    "packet_b134d8299c93c8edf40a9a6c": {
+    "packet_752ec19e64ebbe99825132c9": {
       "requestHash": "712f11260e5f57224024ef8d8b846a30d5777789fe23ff7c3561490336e5acf4",
       "request": {
         "model": "jev-1.13.0",
@@ -932,7 +934,7 @@
       },
       "bindings": {
         "q_0": {
-          "unitId": "unit_0af1f334248bb6555adeba5f",
+          "unitId": "unit_cf791a1e14df2da057c6e73c",
           "labelId": "serves_api_documentation",
           "targetId": "comment_0",
           "contextRefs": [
@@ -940,7 +942,7 @@
           ]
         },
         "q_1": {
-          "unitId": "unit_0af1f334248bb6555adeba5f",
+          "unitId": "unit_cf791a1e14df2da057c6e73c",
           "labelId": "describes_behaviour",
           "targetId": "comment_0",
           "contextRefs": [
@@ -948,7 +950,7 @@
           ]
         },
         "q_2": {
-          "unitId": "unit_0af1f334248bb6555adeba5f",
+          "unitId": "unit_cf791a1e14df2da057c6e73c",
           "labelId": "explains_rationale",
           "targetId": "comment_0",
           "contextRefs": [
@@ -956,7 +958,7 @@
           ]
         },
         "q_3": {
-          "unitId": "unit_0af1f334248bb6555adeba5f",
+          "unitId": "unit_cf791a1e14df2da057c6e73c",
           "labelId": "describes_non_obvious_behaviour",
           "targetId": "comment_0",
           "contextRefs": [
@@ -964,7 +966,7 @@
           ]
         },
         "q_4": {
-          "unitId": "unit_0af1f334248bb6555adeba5f",
+          "unitId": "unit_cf791a1e14df2da057c6e73c",
           "labelId": "documents_workaround",
           "targetId": "comment_0",
           "contextRefs": [
@@ -972,7 +974,7 @@
           ]
         },
         "q_5": {
-          "unitId": "unit_0af1f334248bb6555adeba5f",
+          "unitId": "unit_cf791a1e14df2da057c6e73c",
           "labelId": "states_constraint",
           "targetId": "comment_0",
           "contextRefs": [
@@ -980,7 +982,7 @@
           ]
         },
         "q_6": {
-          "unitId": "unit_0af1f334248bb6555adeba5f",
+          "unitId": "unit_cf791a1e14df2da057c6e73c",
           "labelId": "warns_about_pitfall",
           "targetId": "comment_0",
           "contextRefs": [
@@ -988,7 +990,7 @@
           ]
         },
         "q_7": {
-          "unitId": "unit_0af1f334248bb6555adeba5f",
+          "unitId": "unit_cf791a1e14df2da057c6e73c",
           "labelId": "tracks_follow_up",
           "targetId": "comment_0",
           "contextRefs": [
@@ -996,7 +998,7 @@
           ]
         },
         "q_8": {
-          "unitId": "unit_0af1f334248bb6555adeba5f",
+          "unitId": "unit_cf791a1e14df2da057c6e73c",
           "labelId": "writing_clarity",
           "targetId": "comment_0",
           "contextRefs": [
@@ -1004,7 +1006,7 @@
           ]
         },
         "q_9": {
-          "unitId": "unit_0af1f334248bb6555adeba5f",
+          "unitId": "unit_cf791a1e14df2da057c6e73c",
           "labelId": "specificity",
           "targetId": "comment_0",
           "contextRefs": [
@@ -1012,7 +1014,7 @@
           ]
         },
         "q_10": {
-          "unitId": "unit_0af1f334248bb6555adeba5f",
+          "unitId": "unit_cf791a1e14df2da057c6e73c",
           "labelId": "reader_value",
           "targetId": "comment_0",
           "contextRefs": [
@@ -1020,7 +1022,7 @@
           ]
         },
         "q_11": {
-          "unitId": "unit_0af1f334248bb6555adeba5f",
+          "unitId": "unit_cf791a1e14df2da057c6e73c",
           "labelId": "restates_visible_code",
           "targetId": "comment_0",
           "contextRefs": [
@@ -1028,7 +1030,7 @@
           ]
         },
         "q_12": {
-          "unitId": "unit_0af1f334248bb6555adeba5f",
+          "unitId": "unit_cf791a1e14df2da057c6e73c",
           "labelId": "materially_ambiguous",
           "targetId": "comment_0",
           "contextRefs": [
@@ -1036,7 +1038,7 @@
           ]
         },
         "q_13": {
-          "unitId": "unit_0af1f334248bb6555adeba5f",
+          "unitId": "unit_cf791a1e14df2da057c6e73c",
           "labelId": "local_consistency",
           "targetId": "comment_0",
           "contextRefs": [
@@ -1044,7 +1046,7 @@
           ]
         },
         "q_14": {
-          "unitId": "unit_4318f8451d065b60bcaf8bef",
+          "unitId": "unit_6b285130d57ea7c67a70095f",
           "labelId": "serves_api_documentation",
           "targetId": "comment_1",
           "contextRefs": [
@@ -1052,7 +1054,7 @@
           ]
         },
         "q_15": {
-          "unitId": "unit_4318f8451d065b60bcaf8bef",
+          "unitId": "unit_6b285130d57ea7c67a70095f",
           "labelId": "describes_behaviour",
           "targetId": "comment_1",
           "contextRefs": [
@@ -1060,7 +1062,7 @@
           ]
         },
         "q_16": {
-          "unitId": "unit_4318f8451d065b60bcaf8bef",
+          "unitId": "unit_6b285130d57ea7c67a70095f",
           "labelId": "explains_rationale",
           "targetId": "comment_1",
           "contextRefs": [
@@ -1068,7 +1070,7 @@
           ]
         },
         "q_17": {
-          "unitId": "unit_4318f8451d065b60bcaf8bef",
+          "unitId": "unit_6b285130d57ea7c67a70095f",
           "labelId": "describes_non_obvious_behaviour",
           "targetId": "comment_1",
           "contextRefs": [
@@ -1076,7 +1078,7 @@
           ]
         },
         "q_18": {
-          "unitId": "unit_4318f8451d065b60bcaf8bef",
+          "unitId": "unit_6b285130d57ea7c67a70095f",
           "labelId": "documents_workaround",
           "targetId": "comment_1",
           "contextRefs": [
@@ -1084,7 +1086,7 @@
           ]
         },
         "q_19": {
-          "unitId": "unit_4318f8451d065b60bcaf8bef",
+          "unitId": "unit_6b285130d57ea7c67a70095f",
           "labelId": "states_constraint",
           "targetId": "comment_1",
           "contextRefs": [
@@ -1092,7 +1094,7 @@
           ]
         },
         "q_20": {
-          "unitId": "unit_4318f8451d065b60bcaf8bef",
+          "unitId": "unit_6b285130d57ea7c67a70095f",
           "labelId": "warns_about_pitfall",
           "targetId": "comment_1",
           "contextRefs": [
@@ -1100,7 +1102,7 @@
           ]
         },
         "q_21": {
-          "unitId": "unit_4318f8451d065b60bcaf8bef",
+          "unitId": "unit_6b285130d57ea7c67a70095f",
           "labelId": "tracks_follow_up",
           "targetId": "comment_1",
           "contextRefs": [
@@ -1108,7 +1110,7 @@
           ]
         },
         "q_22": {
-          "unitId": "unit_4318f8451d065b60bcaf8bef",
+          "unitId": "unit_6b285130d57ea7c67a70095f",
           "labelId": "writing_clarity",
           "targetId": "comment_1",
           "contextRefs": [
@@ -1116,7 +1118,7 @@
           ]
         },
         "q_23": {
-          "unitId": "unit_4318f8451d065b60bcaf8bef",
+          "unitId": "unit_6b285130d57ea7c67a70095f",
           "labelId": "specificity",
           "targetId": "comment_1",
           "contextRefs": [
@@ -1124,7 +1126,7 @@
           ]
         },
         "q_24": {
-          "unitId": "unit_4318f8451d065b60bcaf8bef",
+          "unitId": "unit_6b285130d57ea7c67a70095f",
           "labelId": "reader_value",
           "targetId": "comment_1",
           "contextRefs": [
@@ -1132,7 +1134,7 @@
           ]
         },
         "q_25": {
-          "unitId": "unit_4318f8451d065b60bcaf8bef",
+          "unitId": "unit_6b285130d57ea7c67a70095f",
           "labelId": "restates_visible_code",
           "targetId": "comment_1",
           "contextRefs": [
@@ -1140,7 +1142,7 @@
           ]
         },
         "q_26": {
-          "unitId": "unit_4318f8451d065b60bcaf8bef",
+          "unitId": "unit_6b285130d57ea7c67a70095f",
           "labelId": "materially_ambiguous",
           "targetId": "comment_1",
           "contextRefs": [
@@ -1148,7 +1150,7 @@
           ]
         },
         "q_27": {
-          "unitId": "unit_4318f8451d065b60bcaf8bef",
+          "unitId": "unit_6b285130d57ea7c67a70095f",
           "labelId": "local_consistency",
           "targetId": "comment_1",
           "contextRefs": [

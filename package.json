@@ -1,7 +1,7 @@
 {
   "name": "jevvy",
   "version": "0.1.0",
-  "description": "Source-linked comment analysis for Pi using Jev",
+  "description": "Source-linked comment, function and test analysis for Pi using Jev",
   "keywords": [
     "code-quality",
     "jev",
@@ -19,6 +19,10 @@
     "schemas",
     "examples",
     "README.md",
+    "docs/packs.md",
+    "docs/pack-experiments.md",
+    "docs/packs-verification.md",
+    "docs/experiments",
     "docs/contracts.md",
     "docs/verification.md",
     "docs/evaluation.md",
@@ -42,6 +46,8 @@
     "test": "node --test test/*.test.ts",
     "smoke": "node scripts/pi-check.mjs",
     "smoke:live": "node scripts/pi-check.mjs --live",
+    "smoke:packs": "node scripts/pi-packs-check.mjs",
+    "smoke:packs:live": "node scripts/pi-packs-check.mjs --live",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint",
