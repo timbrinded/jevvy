@@ -5,6 +5,26 @@ records the modular code packs, live Jev experiments, interactive Pi/tmux checks
 and updated clean-install checks. Earlier release and platform results below are
 retained as historical evidence.
 
+Release checks on 22 September 2026 passed on Linux x64 with Node 26.9.0
+and pnpm 11.26.0: formatting, lint, typecheck, all 118 tests, build,
+Pi smoke checks for all three packs, and clean archive and source installations.
+The installation checks covered manifest discovery, parsers, tools, result
+retrieval, reload and removal. The npm publication dry run also passed.
+Jevvy now declares Apache-2.0 and includes the project license. GitHub workflow
+runs and npm registry metadata provide the final CI and publication status.
+
+Release preparation on 21 September 2026 passed on native Linux x64 with
+Node 26.9.0 and pnpm 11.26.0: formatting, zero lint warnings or errors,
+typecheck, all 83 tests, build, Pi dry-run smoke, archive production installation
+through npm 11.19.1, and source-only production installation through pnpm.
+Both clean installations verified manifest discovery, all parsers, commands,
+tools, result retrieval, reload and removal. `npm publish --dry-run` passed;
+no package was published. The archive contains all four Solidity native assets,
+both schemas and the vendored license. At that point, no project license had been chosen.
+The new release workflow configures Linux and macOS installation checks, but
+has not run on GitHub yet. Logs are in `.artifacts/npm-release-*.log` and the
+candidate archive is `.artifacts/jevvy.tgz`. See the [release guide](releasing.md).
+
 The [handoff verification](handoff-verification.md) records 80 passing tests
 on macOS and Linux ARM64, live inference, selective retrieval, old-bundle compatibility
 and an expanded Pi review comparison. The initial results below remain historical evidence.

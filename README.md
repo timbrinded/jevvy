@@ -15,17 +15,19 @@ They also include narrow checks developed through live Jev experiments.
 
 ## Install
 
-Requires Pi, Node 26 and Git on macOS or Linux, ARM64 or x64.
+Requires Pi and Node 26 on macOS or glibc Linux, ARM64 or x64.
 See [tested environments](docs/verification.md#platform-and-host) for platform coverage.
 
 ```sh
-pi install git:github.com/timbrinded/jevvy
+pi install npm:jevvy
 cd /path/to/your/project
 pi
 ```
 
 Restart an existing Pi session after installation. Add `-l` to the install
 command to install only for the current project.
+
+To install from Git instead, use `pi install git:github.com/timbrinded/jevvy`.
 
 In Pi, preview the comments affected by your working changes:
 
@@ -141,6 +143,13 @@ integration. Neither makes paid API calls. Use `pnpm run smoke:live` with
 The last command registers the checkout as a local Pi package. Restart Pi after
 source edits.
 
+- [Release guide](docs/releasing.md): Pi discovery, npm packaging and publication.
 - [Functions and Tests](docs/packs.md): rubrics, evidence requirements and Kiln attribution.
 - [Verification](docs/verification.md): test coverage and detailed checks.
 - [Bundle contract](docs/contracts.md): schemas, validation and retrieval rules.
+
+## License
+
+[Apache-2.0](LICENSE). Separate third-party notices apply to the
+[Solidity grammar](native/solidity/LICENSE) and
+[adapted Codesavers material](docs/packs.md#source-and-license).
