@@ -1,0 +1,95 @@
+name: Package and publish
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the tested archive to npm (run from a version tag)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Check release version
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          const { version, license } = JSON.parse(readFileSync('package.json', 'utf8'));
+          assert.equal(process.env.RELEASE_REF_TYPE, 'tag', 'Publish from a version tag');
+          assert.equal(process.env.RELEASE_TAG, `v${version}`, 'Release tag must match package.json');
+          assert.ok(license, 'Choose a project license before publishing');
+          assert.ok(readFileSync('LICENSE', 'utf8').trim(), 'Include the project license text');
+          NODE
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run check
+      - run: pnpm run smoke
+      - run: pnpm run pack:release
+      - run: npm publish .artifacts/jevvy.tgz --dry-run --ignore-scripts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: .artifacts/jevvy.tgz
+          if-no-files-found: error
+
+  install:
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-package
+          path: .artifacts
+      - run: pnpm run check:package
+      - run: node scripts/clean-install.mjs --source
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    needs: [package, install]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-package
+          path: .artifacts
+      - name: Publish tested archive
+        env:
+          NPM_TAG: ${{ contains(github.ref_name, '-') && 'next' || 'latest' }}
+        run: npm publish .artifacts/jevvy.tgz --access public --provenance --ignore-scripts --tag "$NPM_TAG"

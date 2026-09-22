@@ -6,8 +6,9 @@ import { resolve, join, dirname } from 'node:path';
 import { spawn } from 'node:child_process';
 
 const sourceOnly = process.argv.includes('--source');
-const archive = sourceOnly ? undefined : resolve(process.argv[2] ?? '.artifacts/jevvy-0.1.0.tgz');
 const workspace = process.cwd();
+const manifest = JSON.parse(await readFile(join(workspace, 'package.json'), 'utf8'));
+const archive = sourceOnly ? undefined : resolve(process.argv[2] ?? `.artifacts/jevvy-${manifest.version}.tgz`);
 const temporary = await mkdtemp(join(tmpdir(), 'jevvy-production-'));
 const host = join(temporary, 'host'),
   installation = join(temporary, 'package'),
@@ -21,6 +22,7 @@ const env = {
   PI_CODING_AGENT_DIR: agentDir,
   PI_TELEMETRY: '0',
   PI_OFFLINE: '1',
+  npm_config_cache: join(temporary, 'npm-cache'),
 };
 function run(command, args, cwd = host) {
   return new Promise((resolve, reject) => {
@@ -44,7 +46,6 @@ try {
     join(temporary, 'pnpm-store'),
     `--config.cache-dir=${join(temporary, 'pnpm-cache')}`,
   ];
-  const manifest = JSON.parse(await readFile(join(workspace, 'package.json'), 'utf8'));
   for (const root of [host, installation]) {
     await cp(join(workspace, 'pnpm-workspace.yaml'), join(root, 'pnpm-workspace.yaml'));
   }
@@ -66,8 +67,8 @@ try {
     assert.equal(existsSync(join(packageRoot, 'dist')), false);
     assert.equal(existsSync(join(packageRoot, 'node_modules/typescript')), false);
   } else {
-    // Like Pi's managed npm installs, leave host peers to Pi's loader.
-    await run('pnpm', ['add', ...pnpmOptions, '--config.auto-install-peers=false', archive], installation);
+    // Match Pi's default npm install path, including its host-peer policy.
+    await run('npm', ['install', '--omit=dev', '--legacy-peer-deps', '--no-audit', '--no-fund', archive], installation);
     for (const peer of Object.keys(manifest.peerDependencies))
       assert.equal(existsSync(join(installation, 'node_modules', peer)), false, `${peer} should come from the Pi host`);
   }

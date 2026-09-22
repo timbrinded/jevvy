@@ -8,6 +8,11 @@
     "pi-extension",
     "pi-package"
   ],
+  "homepage": "https://github.com/timbrinded/jevvy#readme",
+  "bugs": {
+    "url": "https://github.com/timbrinded/jevvy/issues"
+  },
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/timbrinded/jevvy.git"
@@ -19,6 +24,7 @@
     "schemas",
     "examples",
     "README.md",
+    "docs/releasing.md",
     "docs/packs.md",
     "docs/pack-experiments.md",
     "docs/packs-verification.md",
@@ -35,10 +41,22 @@
     "docs/cookbook-assessment.md",
     "docs/jevvy-product-sheet.md"
   ],
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "cpu": [
+    "arm64",
+    "x64"
+  ],
   "type": "module",
   "exports": {
     ".": "./dist/engine.js",
     "./contracts": "./dist/contracts.js"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -53,6 +71,8 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm test && pnpm run build",
+    "pack:release": "pnpm pack --out .artifacts/jevvy.tgz",
+    "check:package": "node scripts/clean-install.mjs .artifacts/jevvy.tgz",
     "prepack": "pnpm run build"
   },
   "dependencies": {
