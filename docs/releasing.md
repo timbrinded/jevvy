@@ -32,13 +32,17 @@ npm trusted publishing for later versions.
 | `exports` | Built JavaScript library entry points. These are separate from Pi's source entry point. |
 | `dependencies` | Runtime parsers and TypeSafe SDK. |
 | `peerDependencies` | Pi host packages and TypeBox, with the wildcard ranges specified by Pi. |
-| `engines`, `os`, `cpu`, `libc` | Node 26, macOS or glibc Linux, ARM64 or x64. |
+| `engines`, `os`, `cpu` | Node 26, macOS or Linux, ARM64 or x64. Linux support requires glibc. |
 | `publishConfig` | Public access on `https://registry.npmjs.org/`. |
 
 The [npm manifest reference](https://docs.npmjs.com/cli/v11/configuring-npm/package-json)
 defines the npm fields. The platform declarations match the shipped native parser
 assets and tested Linux libc. Windows, other architectures and musl Linux are
 outside this release's support boundary.
+
+Do not set a root `libc` restriction: npm applies it on macOS too and rejects
+the package because macOS has no Linux libc value. The glibc requirement for
+Linux remains part of the documented support boundary.
 
 Keep the TypeScript source entry point: it lets Pi install directly from Git
 without a compiler or an existing `dist/` directory. `prepack` builds the library

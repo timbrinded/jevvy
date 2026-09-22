@@ -49,9 +49,6 @@
     "arm64",
     "x64"
   ],
-  "libc": [
-    "glibc"
-  ],
   "type": "module",
   "exports": {
     ".": "./dist/engine.js",
