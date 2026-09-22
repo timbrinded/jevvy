@@ -44,7 +44,6 @@ jobs:
       - run: pnpm run smoke
       - run: pnpm run pack:release
       - run: npm publish .artifacts/jevvy.tgz --dry-run --ignore-scripts
-        if: github.event_name == 'workflow_dispatch' && inputs.publish
       - uses: actions/upload-artifact@v4
         with:
           name: npm-package

@@ -15,80 +15,38 @@ They also include narrow checks developed through live Jev experiments.
 
 ## Install
 
-Use macOS or glibc Linux on ARM64 or x64. Install
-[Node.js 26](https://nodejs.org/en/download) (which includes npm) first.
-Git is required for working-tree and branch scans, and for installation from Git.
-See [tested environments](docs/verification.md#platform-and-host) for platform coverage.
-
-Run these commands in your **terminal**. Skip the Pi install if you already have Pi:
-
 ```sh
-node --version # must show v26.x
-npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 pi install npm:jevvy
 ```
 
-This follows the [Pi installation guide](https://pi.dev/docs/latest/quickstart).
-Jevvy installs its parser packages and TypeSafe SDK automatically. You do not need
-to install ast-grep, Python, Rust, a compiler, or pnpm to use the npm package.
-The parser packages include prebuilt binaries for the supported platforms;
-they do not need to be installed on your machine beforehand.
+Restart Pi after installation. Use `pi install -l npm:jevvy` for the current
+project only.
 
-If npm prints `install scripts not yet covered by allowScripts` for
-`@ast-grep/lang-python` or `@ast-grep/lang-rust`, no approval or rebuild is needed
-on those platforms. Their parsers load from the included binaries. A warning for
-`node-pty` concerns another package; Jevvy does not depend on it. Pi's normal npm
-installation also works without lifecycle scripts, as its guide explains.
+Requires Node 26 on macOS or glibc Linux, ARM64 or x64.
+Parser packages and their prebuilt binaries install automatically. On supported
+platforms, npm's install-script warnings for the Python and Rust parsers need
+no manual build or approval. See [tested environments](docs/verification.md#platform-and-host).
 
-Installation is user-wide by default. Use `pi install -l npm:jevvy` from your
-project directory to register it for that project only.
-To install from Git instead, use `pi install git:github.com/timbrinded/jevvy`.
+## Quick start
 
-## First scan
-
-Start Pi from the project you want to review. Restart an existing Pi session
-after installing Jevvy:
+For live scans, get a key from the [TypeSafe dashboard](https://console.typesafe.ai/keys)
+and set it before starting Pi in your project:
 
 ```sh
+export TYPESAFE_API_KEY='your-typesafe-api-key'
 cd /path/to/your/project
 pi
 ```
 
-For Pi's chat, run `/login` inside Pi and select your provider, or configure a
-[provider API key](https://pi.dev/docs/latest/quickstart). That login is separate
-from the TypeSafe key used by Jevvy's live scans.
-
-Enter the following **inside Pi**, not in your terminal. Replace the example path
-with an existing source file:
+Inside Pi, preview a scan of your uncommitted changes:
 
 ```text
-/jevvy comments --files src/example.ts --dry-run
+/jevvy comments --working --dry-run
 ```
 
-A dry-run checks local parsing and shows the selected comments and planned
-requests. It makes no Jev calls and needs no TypeSafe key. For uncommitted Git
-changes, use `/jevvy comments --working --dry-run`; a clean working tree selects
-nothing.
-
-For live analysis, create a key in the [TypeSafe dashboard](https://console.typesafe.ai/keys).
-Exit Pi, then set the key in your **terminal** and start Pi again:
-
-```sh
-export TYPESAFE_API_KEY='your-typesafe-api-key'
-pi
-```
-
-The key must be available in each shell that launches Pi. Setting it in a
-different terminal does not update an already running Pi session.
-Inside Pi, repeat the scan without `--dry-run`:
-
-```text
-/jevvy comments --files src/example.ts
-```
-
-Live scans send the selected source and context to TypeSafe and consume your
-TypeSafe API usage. The result card gives you a bundle ID to use with
-`/jevvy inspect <bundle-id>` or `/jevvy results <bundle-id>`.
+Remove `--dry-run` to run the analysis using your TypeSafe account. Dry runs
+make no API calls and work without a key. To scan a file in a clean working tree,
+use `/jevvy comments --files src/example.ts --dry-run`.
 
 ## Scan comments
 
