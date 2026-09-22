@@ -15,29 +15,38 @@ They also include narrow checks developed through live Jev experiments.
 
 ## Install
 
-Requires Pi and Node 26 on macOS or glibc Linux, ARM64 or x64.
-See [tested environments](docs/verification.md#platform-and-host) for platform coverage.
-
 ```sh
 pi install npm:jevvy
+```
+
+Restart Pi after installation. Use `pi install -l npm:jevvy` for the current
+project only.
+
+Requires Node 26 on macOS or glibc Linux, ARM64 or x64.
+Parser packages and their prebuilt binaries install automatically. On supported
+platforms, npm's install-script warnings for the Python and Rust parsers need
+no manual build or approval. See [tested environments](docs/verification.md#platform-and-host).
+
+## Quick start
+
+For live scans, get a key from the [TypeSafe dashboard](https://console.typesafe.ai/keys)
+and set it before starting Pi in your project:
+
+```sh
+export TYPESAFE_API_KEY='your-typesafe-api-key'
 cd /path/to/your/project
 pi
 ```
 
-Restart an existing Pi session after installation. Add `-l` to the install
-command to install only for the current project.
-
-To install from Git instead, use `pi install git:github.com/timbrinded/jevvy`.
-
-In Pi, preview the comments affected by your working changes:
+Inside Pi, preview a scan of your uncommitted changes:
 
 ```text
 /jevvy comments --working --dry-run
 ```
 
-A dry-run shows the selected comments and planned requests without API calls or
-an API key. For live analysis, set `TYPESAFE_API_KEY` in your shell before
-starting Pi, then omit `--dry-run`. Requests use your TypeSafe account.
+Remove `--dry-run` to run the analysis using your TypeSafe account. Dry runs
+make no API calls and work without a key. To scan a file in a clean working tree,
+use `/jevvy comments --files src/example.ts --dry-run`.
 
 ## Scan comments
 
