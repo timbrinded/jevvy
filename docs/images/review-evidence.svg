@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Inspect the claim beside the captured code</title>
+  <desc id="desc">An illustrative Comments-pack example. A comment says a lookup function returns undefined, but the supplied implementation throws an error. An illustrative local_consistency answer is contradicted. The saved bundle binds the captured source snapshot, fixed question definition, and original model answer with its distribution and confidence. Pi can retrieve that evidence before recommending a change. This illustration contains no measured probabilities or live results.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1200" y2="700" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#18222a"/><stop offset="1" stop-color="#10171e"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto">
+      <path d="m2 2 4 3-4 3" stroke="#b5d9c8" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      text { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; }
+      .body { font-size: 22px; fill: #bdcbd1; }
+      .label { font-size: 19px; font-weight: 600; letter-spacing: 1px; fill: #a6cdb9; }
+      .mono { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 24px; }
+    </style>
+  </defs>
+  <rect x="1" y="1" width="1198" height="698" rx="24" fill="url(#canvas)" stroke="#3c4b54"/>
+  <text x="48" y="61" class="label">ILLUSTRATIVE COMMENTS EXAMPLE</text>
+  <text x="48" y="126" font-size="46" font-weight="600" letter-spacing="-1.5" fill="#eef3ed">Inspect the claim beside the code.</text>
+  <text x="48" y="169" class="body">Each result keeps the evidence used to ask and answer the question.</text>
+
+  <rect x="48" y="208" width="520" height="272" rx="16" fill="#1e2b33" stroke="#435963"/>
+  <text x="72" y="247" class="label">CAPTURED SOURCE / lookup.ts</text>
+  <path d="M49 268h518" stroke="#435963"/>
+  <text x="72" y="314" class="mono" fill="#b5d9c8">// Returns undefined.</text>
+  <text x="72" y="356" class="mono" fill="#e6ecef"><tspan fill="#cbb5e7">function</tspan> lookup() {</text>
+  <rect x="64" y="370" width="488" height="42" rx="6" fill="#e4a96b" fill-opacity=".09"/>
+  <path d="M65 373v35" stroke="#edbd8e" stroke-width="2"/>
+  <text x="72" y="398" class="mono" fill="#e6ecef" xml:space="preserve">  throw Error(<tspan fill="#edbd8e">"Missing"</tspan>);</text>
+  <text x="72" y="440" class="mono" fill="#e6ecef">}</text>
+
+  <path d="M575 344h36" stroke="#b5d9c8" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="620" y="208" width="532" height="272" rx="16" fill="#22332d" stroke="#536f60"/>
+  <text x="644" y="247" class="label">SAVED REVIEW RESULT</text>
+  <path d="M621 268h530" stroke="#536f60"/>
+  <text x="644" y="311" font-size="25" font-weight="600" fill="#e6ecef">Local consistency</text>
+  <text x="644" y="351" class="body">Compare a comment's factual claims</text>
+  <text x="644" y="382" class="body">with the supplied implementation.</text>
+  <text x="644" y="434" font-size="26" font-weight="600" fill="#f2c297">Illustrative answer: contradicted</text>
+
+  <g>
+    <rect x="48" y="520" width="348" height="122" rx="14" fill="#1e2b33" stroke="#435963"/>
+    <text x="72" y="555" class="label">SOURCE SNAPSHOT</text>
+    <text x="72" y="590" class="body">Captured code + references</text>
+    <text x="72" y="620" class="body">Evidence as it was scanned</text>
+    <rect x="426" y="520" width="348" height="122" rx="14" fill="#1e2b33" stroke="#435963"/>
+    <text x="450" y="555" class="label">QUESTION DEFINITION</text>
+    <text x="450" y="590" class="body">Fixed rubric + outcomes</text>
+    <text x="450" y="620" class="body">Pack version + definition hash</text>
+    <rect x="804" y="520" width="348" height="122" rx="14" fill="#1e2b33" stroke="#435963"/>
+    <text x="828" y="555" class="label">ORIGINAL ANSWER</text>
+    <text x="828" y="590" class="body">Distribution + confidence</text>
+    <text x="828" y="620" class="body">Processing gaps stay visible</text>
+  </g>
+  <text x="48" y="678" font-size="21" fill="#a5b8c0">Pi can retrieve the saved evidence before recommending a change.</text>
+</svg>

@@ -1,88 +1,118 @@
 # jevvy
 
-jevvy is a [Pi](https://github.com/earendil-works/pi) extension that uses
-[Jev](https://docs.typesafe.ai/) to review comments, functions and tests. Each pack
-asks fixed questions and returns the answers with their source evidence. Pi can
-inspect that evidence before recommending changes. Jevvy scans leave source files
+Structured review of comments, functions and tests for [Pi](https://pi.dev/), powered by
+[Jev](https://docs.typesafe.ai/).
+
+Jevvy extracts selected source, asks a fixed set of review questions, and saves the
+answers alongside the code and question definitions used to produce them. You and
+Pi can inspect that evidence before recommending changes. Scans leave source files
 unchanged.
+
+## What it reviews
+
+Each **pack** supplies questions for one kind of source unit:
+
+| Pack | What it assesses |
+| --- | --- |
+| **Comments** | Purpose, clarity, specificity, reader value, ambiguity, and consistency with the supplied implementation. |
+| **Functions** | Redundant checks, hidden required failures, unnecessary indirection, unused flexibility, avoidable nesting, and paths denied by an explicit permission rule. |
+| **Tests** | Application-owned behavior, gaps between claims and assertions, mocks that bypass the subject, repeated expected-value logic, and irrelevant fixture setup. |
 
 Source parsing supports JavaScript/JSX, TypeScript/TSX, Rust, Python and Solidity.
 The Functions and Tests packs adapt [Kiln Code Savers](docs/packs.md#source-and-license)
-rubrics for unnecessary complexity and tests of application-owned behavior.
-They also include narrow checks developed through live Jev experiments.
+rubrics and include narrow checks developed through live Jev experiments.
+See [pack questions and evidence requirements](docs/packs.md).
 
-![Comments and local code are sent to Jev for assessment, then saved as source-linked results for Pi.](docs/images/how-it-works.svg)
+![Jevvy captures source locally, sends selected units and context to Jev, validates and saves the answers, then makes the evidence available to Pi and the reviewer.](docs/images/how-it-works.svg)
 
-## Install
+## Install and preview
+
+Install [Pi](https://pi.dev/) first. Jevvy requires Node 26 on macOS or glibc Linux,
+with an ARM64 or x64 processor.
 
 ```sh
 pi install npm:jevvy
 ```
 
-Restart Pi after installation. Use `pi install -l npm:jevvy` for the current
-project only.
+Restart Pi after installation. Use `pi install -l npm:jevvy` to install for the
+current project only. Parser packages and their prebuilt binaries install
+automatically; supported platforms need no manual build or approval for the Python
+and Rust parsers. See [tested environments](docs/verification.md#platform-and-host).
 
-Requires Node 26 on macOS or glibc Linux, ARM64 or x64.
-Parser packages and their prebuilt binaries install automatically. On supported
-platforms, npm's install-script warnings for the Python and Rust parsers need
-no manual build or approval. See [tested environments](docs/verification.md#platform-and-host).
-
-## Quick start
-
-For live scans, get a key from the [TypeSafe dashboard](https://console.typesafe.ai/keys)
-and set it before starting Pi in your project:
+Start Pi at your project's root and preview a scan of your uncommitted changes:
 
 ```sh
-export TYPESAFE_API_KEY='your-typesafe-api-key'
 cd /path/to/your/project
 pi
 ```
 
-Inside Pi, preview a scan of your uncommitted changes:
+Inside Pi:
 
 ```text
 /jevvy comments --working --dry-run
 ```
 
-Remove `--dry-run` to run the analysis using your TypeSafe account. Dry runs
-make no API calls and work without a key. To scan a file in a clean working tree,
-use `/jevvy comments --files src/example.ts --dry-run`.
+A dry run prepares the source and questions without making API calls or requiring
+a TypeSafe key. A clean working tree has no changes to review; use a named file
+instead, replacing the path with one in your project:
 
-## Scan comments
+```text
+/jevvy comments --files src/example.ts --dry-run
+```
 
-| Scope | Command |
+## Run a live scan
+
+Get a key from the [TypeSafe dashboard](https://console.typesafe.ai/keys), then set
+it in your shell before starting Pi:
+
+```sh
+export TYPESAFE_API_KEY='your-typesafe-api-key'
+pi
+```
+
+Remove `--dry-run` to run the analysis using your TypeSafe account:
+
+```text
+/jevvy comments --working
+/jevvy functions --files src/orders.ts
+/jevvy tests --files test/orders.test.ts --context-files src/orders.ts package.json
+```
+
+For Functions and Tests, supply related implementations, manifests and contracts
+with `--context-files`. Supporting files come from the selected snapshot and share
+the context budget with local evidence. Missing evidence remains visible; Jevvy
+does not infer a complete call graph or test suite.
+
+## Choose a scope
+
+All three packs support these scope options. Replace `comments` with `functions`
+or `tests` as needed.
+
+| Scope | Example |
 | --- | --- |
 | Named files | `/jevvy comments --files src/example.ts src/other.ts` |
 | Working changes | `/jevvy comments --working` |
 | Branch changes | `/jevvy comments --base origin/master --head HEAD` |
 
-File paths are relative to Pi's working directory. Working scans compare against
-HEAD and include non-ignored untracked files. Branch scans compare the base/head
-merge-base with head; replace `origin/master` with your base branch.
+Working scans compare against HEAD and include non-ignored untracked files.
+Branch scans compare the base/head merge-base with head; use your project's base
+branch in place of `origin/master`. Diff scans also select unchanged comments
+attached to changed code.
 
-Diff scans include unchanged comments attached to changed code. A clean working
-tree has no changes to review; use `--files` to scan existing files. Add
-`--dry-run` to any scan to preview it, or use `/jevvy cancel` to stop a running scan.
+For `--files`, paths are relative to Pi's working directory. With `--working` or
+`--base`, `--context-files` paths are relative to the Git repository root. Starting
+Pi at the repository root keeps these path bases the same.
 
-## Scan functions and tests
+Add `--dry-run` to preview any scan, or use `/jevvy cancel` to stop a running scan.
 
-```text
-/jevvy functions --files src/orders.ts
-/jevvy tests --files test/orders.test.ts --context-files src/orders.ts package.json
-```
+## Inspect the results
 
-Both packs also support `--working`, `--base <ref> [--head <ref>]`, and `--dry-run`.
-Supporting files are explicit: include the relevant implementation, manifest and
-contract so a test can be assessed against the behavior it protects. They are
-captured from the selected snapshot and subject to the context budget. Missing
-evidence remains visible; Jevvy does not infer a complete call graph or test suite.
-See [pack rubrics and limits](docs/packs.md).
+Each scan saves a **bundle**: the captured source, question definitions, answers
+and processing details. The result card shows coverage, errors and the bundle ID.
+Completed answers remain available after cancellation or failures in other
+requests.
 
-## Read results
-
-Each scan saves a **bundle** containing the assessments and the source used to
-make them. The result card shows coverage, errors and the bundle ID. Completed
-answers remain available after cancellation or failures in other requests.
+![An illustrative comment promises undefined while its implementation throws. The saved result keeps the original source, question definition and model answer together for inspection.](docs/images/review-evidence.svg)
 
 Open the inspector to browse selected units, saved source and question definitions:
 
@@ -93,42 +123,43 @@ Open the inspector to browse selected units, saved source and question definitio
 Left and right change pages, up and down scroll, and Tab switches views. Escape
 or your configured Pi cancel key closes the inspector.
 
-Retrieve an overview or a page of comments:
+Retrieve an overview or a page of source units:
 
 ```text
 /jevvy results <bundle-id>
-/jevvy results <bundle-id> --view units --limit 5
+/jevvy results <bundle-id> --view units --limit 5 --include-context --include-definitions
 ```
 
-Pi can also use `jevvy_comments`, `jevvy_functions`, `jevvy_tests`, and
-`jevvy_results`. Reading saved results makes no API calls. See the
-[sample report](examples/jevvy-results.example.md) for the output format; its
-values are synthetic.
+Pi can call `jevvy_comments`, `jevvy_functions`, `jevvy_tests` and `jevvy_results`
+directly. Reading saved results makes no API calls. The [sample report](examples/jevvy-results.example.md)
+shows the output format with synthetic values.
 
-For a code-pack result, select a question and rank its `issue` outcome:
+For a **Tests bundle**, rank the `owned_behavior` question by its `issue` outcome
+to inspect candidates whose assertions appear to repeat only dependency-owned
+behavior:
 
 ```text
-/jevvy results <bundle-id> --view units --labels owned_behavior --sort owned_behavior --outcome issue --min-probability 0.8 --min-confidence 0.7 --include-context --include-definitions
+/jevvy results <bundle-id> --view units --labels owned_behavior --sort owned_behavior --outcome issue --include-context --include-definitions
 ```
 
-Those cutoffs are example review settings, not calibrated accuracy guarantees.
-Filters operate on saved answers. The full distributions, unknown outcomes and
-unfiltered results remain available. A scan that raises no candidate does not
-establish that the code or tests are correct.
+Optional `--min-probability 0.8 --min-confidence 0.7` filters apply to saved answers;
+those example cutoffs are review settings, not calibrated accuracy guarantees.
+Full distributions, unknown outcomes and unfiltered results remain available.
+Check the supplied evidence before accepting a candidate. A scan that raises no
+candidate does not establish that the code or tests are correct.
 
 ## Data and settings
 
-Live scans send selected units and their bound context to TypeSafe. Context
-can include an entire small file. Reports and retrieved code enter Pi's model
-conversation. Bundles store full captured files locally so results retain the
-source as it was when scanned.
+Live scans send selected units and their bound context to TypeSafe. Context can
+include an entire small file. Reports and retrieved code enter Pi's model
+conversation. Bundles store full captured files locally, preserving the source
+as it was when scanned.
 
 Bundles and cached answers are stored in `~/.cache/jevvy`. Set `JEVVY_STORAGE_DIR`
 to change this location; keep it outside tracked project files. Saving a new
 bundle removes results and cached answers older than 30 days by default.
 
-For other settings, set `JEVVY_CONFIG` to a JSON object that overrides the
-[configuration defaults](src/config.ts).
+Set `JEVVY_CONFIG` to a JSON object to override the [configuration defaults](src/config.ts).
 
 ## Development
 
